@@ -1,0 +1,40 @@
+stages:
+  fetch_scb:
+    cmd: >
+      python backend/scripts/fetch_scb_api.py --url ${item.url} --query ${item.query} --out data/raw/scb.csv
+    foreach:
+      - url: https://api.scb.se/OV0104/v1/doris/sv/ssd/START/BO/BO0501/BO0501C/FastprisBRFRegionAr
+        query: scb_query.json
+    deps:
+      - backend/scripts/fetch_scb_api.py
+      - backend/src/spi_data/jsonstat2.py
+      - scb_query.json
+    outs:
+      - data/raw/scb.csv
+
+  prepare:
+    cmd: >
+      python backend/scripts/prepare_data.py --params params.json
+    deps:
+      - backend/scripts/prepare_data.py
+      - backend/src/spi_data
+      - params.json
+      - data/raw/scb.csv
+    outs:
+      - data/processed/train.csv
+    metrics:
+      - backend/reports/data/summary.json
+
+  train:
+    cmd: >
+      python backend/scripts/run_experiments.py --params params.json --model baseline --version v1
+    deps:
+      - backend/scripts/run_experiments.py
+      - backend/src/spi_train
+      - params.json
+      - data/processed/train.csv
+    outs:
+      - backend/models
+    metrics:
+      - backend/reports/metrics/latest.json
+

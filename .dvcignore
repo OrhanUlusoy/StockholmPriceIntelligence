@@ -1,0 +1,3 @@
+.venv/
+.git/
+frontend/node_modules/

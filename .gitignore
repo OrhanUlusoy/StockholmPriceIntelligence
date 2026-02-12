@@ -1,0 +1,26 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# Data + artifacts
+data/
+backend/models/
+backend/logs/
+backend/reports/
+
+# Runtime logs (repo root)
+logs/
+
+!data/.gitkeep
+!data/processed/.gitkeep
+
+# DVC
+.dvc/
+dvc.lock
+
+# Frontend
+frontend/.next/
+frontend/node_modules/
+frontend/out/
+frontend/.env.local
