@@ -68,6 +68,17 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    @app.get("/")
+    def root() -> dict:
+        return {
+            "service": "Stockholm Price Intelligence",
+            "endpoints": {
+                "health": "/health",
+                "model_info": "/model-info",
+                "predict": "/predict",
+            },
+        }
+
     @app.get("/health")
     def health() -> dict:
         return {"ok": True}
