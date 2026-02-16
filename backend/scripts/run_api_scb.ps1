@@ -17,6 +17,7 @@ $env:MODEL_PATH = "models/model_scb_v2.pkl"
 $env:PREPROCESSOR_PATH = "models/preprocessor_scb_v2.pkl"
 $env:MODEL_VERSION = "scb_v2"
 $env:TARGET_MODE = "total_price"
+$env:METRICS_PATH = "reports/metrics/latest.json"
 
 if (-not $env:HOST) { $env:HOST = "0.0.0.0" }
 if (-not $env:PORT) { $env:PORT = "8000" }

@@ -11,11 +11,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 COPY pyproject.toml /app/pyproject.toml
 COPY src /app/src
+COPY models /app/models
+COPY reports /app/reports
 
 RUN pip install --no-cache-dir -U pip \
     && pip install --no-cache-dir -e .
 
-# Models are expected to be mounted into /app/models (or baked in by the user)
+# Models are baked into the image via COPY above.
 EXPOSE 8000
 
-CMD ["python", "-m", "uvicorn", "spi_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "python -m uvicorn spi_api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

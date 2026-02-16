@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type PredictRequest = {
   area: number;
@@ -19,6 +19,73 @@ type PredictResponse = {
   inference_ms: number;
 };
 
+type ModelInfoResponse = {
+  model_version: string;
+  target_mode: string;
+  metrics_path?: string | null;
+  metrics?: {
+    mean_mae?: number | null;
+    mean_rmse?: number | null;
+    mean_r2?: number | null;
+  } | null;
+};
+
+type Scenario = {
+  id: string;
+  created_at: string;
+  form: PredictRequest;
+  result: PredictResponse;
+  asking_price: number | null;
+};
+
+type TabKey = "predict" | "compare" | "about";
+
+type Theme = "dark" | "light";
+
+type Language = "sv" | "en";
+
+function SunIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2" />
+      <path d="M12 20v2" />
+      <path d="M4.93 4.93l1.41 1.41" />
+      <path d="M17.66 17.66l1.41 1.41" />
+      <path d="M2 12h2" />
+      <path d="M20 12h2" />
+      <path d="M4.93 19.07l1.41-1.41" />
+      <path d="M17.66 6.34l1.41-1.41" />
+    </svg>
+  );
+}
+
+function MoonIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M21 12.8A8.5 8.5 0 0 1 11.2 3 6.8 6.8 0 1 0 21 12.8Z" />
+    </svg>
+  );
+}
+
 function formatSek(value: number): string {
   return new Intl.NumberFormat("sv-SE", {
     style: "currency",
@@ -29,6 +96,17 @@ function formatSek(value: number): string {
 
 function toNumber(input: string): number {
   return Number(input.replace(",", "."));
+}
+
+function toOptionalNumber(input: string): number | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const parsed = toNumber(trimmed.replace(/\s+/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function safeFixed(value: number, digits: number): string {
+  return Number.isFinite(value) ? value.toFixed(digits) : "-";
 }
 
 function rangeInt(min: number, max: number): number[] {
@@ -49,8 +127,233 @@ export default function Home() {
     [],
   );
 
-  const selectClassName =
-    "w-full rounded-md border border-slate-700 px-3 py-2 bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-400/40";
+  const themeStorageKey = "spi_theme_v1";
+  const [theme, setTheme] = useState<Theme>("dark");
+  const isDark = theme === "dark";
+
+  const languageStorageKey = "spi_language_v1";
+  const [language, setLanguage] = useState<Language>("sv");
+
+  const TEXT = useMemo(
+    () =>
+      ({
+        sv: {
+          tagline: "Uppskatta pris per kvm och totalpris för bostadsrätt.",
+
+          tabs: { predict: "Prediktera", compare: "Jämför", about: "Om" },
+
+          languageLabel: "Språk",
+          languageAria: "Välj språk",
+
+          themeToLightAria: "Byt till ljust tema",
+          themeToDarkAria: "Byt till mörkt tema",
+          themeLightTitle: "Ljust tema",
+          themeDarkTitle: "Mörkt tema",
+
+          labels: {
+            area: "Boarea (kvm)",
+            rooms: "Antal rum",
+            district: "Stadsdel / ort",
+            yearBuilt: "Byggår",
+            transactionYear: "Transaktionsår",
+            monthlyFee: "Avgift (kr/mån)",
+            askingPrice: "Utgångspris (kr) (valfritt)",
+          },
+
+          placeholders: {
+            askingPrice: "t.ex. 4 750 000",
+          },
+
+          actions: {
+            calculating: "Beräknar…",
+            predict: "Prediktera",
+            save: "Spara",
+            saveTitleEnabled: "Spara scenario",
+            saveTitleDisabled: "Prediktera först för att spara",
+          },
+
+          meta: {
+            apiPrefix: "API:",
+          },
+
+          compare: {
+            intro: "Välj två sparade scenarion och jämför.",
+            scenarioA: "Scenario A",
+            scenarioB: "Scenario B",
+            choose: "Välj…",
+            diffTitle: "Skillnad (A − B)",
+            totalPrice: "Totalpris",
+            pricePerSqm: "Pris per kvm",
+            empty: "Inga sparade scenarion ännu. Gå till Prediktera och tryck Spara.",
+          },
+
+          about: {
+            intro: "Info om API och modellen du kör just nu.",
+            api: "API",
+            latestPrediction: "Senaste prediction",
+            latestPredictionEmpty: "Kör Prediktera för att se modellversion.",
+            modelInfoTitle: "/model-info",
+            loading: "Hämtar…",
+            couldNotFetchPrefix: "Kunde inte hämta:",
+            modelVersion: "Model version",
+            targetMode: "Target mode",
+            meanMae: "Mean MAE",
+            meanR2: "Mean R²",
+            tip:
+              "Tips: SCB-läget kan ha färre features än UI. Full-feature (port 8001) är bäst för demo där alla inputs påverkar.",
+          },
+
+          errors: {
+            unknown: "Unknown error",
+          },
+
+          predictResult: {
+            pricePerSqm: "Pris per kvm",
+            totalPrice: "Totalpris",
+            overUnderTitle: "Över-/undervärderat",
+            askingPrice: "Utgångspris",
+            classification: "Klassning",
+            diff: "Diff",
+            bandPrefix: "Band:",
+            bandSuffix: "kring modellvärdet",
+            undervalued: "Undervärderad",
+            overvalued: "Övervärderad",
+            fair: "Rimligt prissatt",
+          },
+
+          saved: {
+            title: "Sparade scenarion",
+            clear: "Rensa",
+            clearConfirm: "Rensa alla sparade scenarion?",
+            setAsA: "Sätt som Scenario A",
+            setAsB: "Sätt som Scenario B",
+            remove: "Ta bort",
+            removeTitle: "Ta bort",
+          },
+
+          units: {
+            sqm: "kvm",
+            rooms: "rum",
+          },
+        },
+        en: {
+          tagline: "Estimate price per sqm and total price for condos.",
+
+          tabs: { predict: "Predict", compare: "Compare", about: "About" },
+
+          languageLabel: "Language",
+          languageAria: "Select language",
+
+          themeToLightAria: "Switch to light theme",
+          themeToDarkAria: "Switch to dark theme",
+          themeLightTitle: "Light theme",
+          themeDarkTitle: "Dark theme",
+
+          labels: {
+            area: "Living area (sqm)",
+            rooms: "Rooms",
+            district: "District / city",
+            yearBuilt: "Year built",
+            transactionYear: "Transaction year",
+            monthlyFee: "Monthly fee (SEK)",
+            askingPrice: "Asking price (SEK) (optional)",
+          },
+
+          placeholders: {
+            askingPrice: "e.g. 4 750 000",
+          },
+
+          actions: {
+            calculating: "Calculating…",
+            predict: "Predict",
+            save: "Save",
+            saveTitleEnabled: "Save scenario",
+            saveTitleDisabled: "Run Predict first to save",
+          },
+
+          meta: {
+            apiPrefix: "API:",
+          },
+
+          compare: {
+            intro: "Pick two saved scenarios and compare.",
+            scenarioA: "Scenario A",
+            scenarioB: "Scenario B",
+            choose: "Choose…",
+            diffTitle: "Difference (A − B)",
+            totalPrice: "Total price",
+            pricePerSqm: "Price per sqm",
+            empty: "No saved scenarios yet. Go to Predict and click Save.",
+          },
+
+          about: {
+            intro: "Info about the API and the model you are running.",
+            api: "API",
+            latestPrediction: "Latest prediction",
+            latestPredictionEmpty: "Run Predict to see the model version.",
+            modelInfoTitle: "/model-info",
+            loading: "Loading…",
+            couldNotFetchPrefix: "Could not fetch:",
+            modelVersion: "Model version",
+            targetMode: "Target mode",
+            meanMae: "Mean MAE",
+            meanR2: "Mean R²",
+            tip:
+              "Tip: The SCB mode may have fewer features than the UI. Full-feature (port 8001) is best for demos where all inputs affect the result.",
+          },
+
+          errors: {
+            unknown: "Unknown error",
+          },
+
+          predictResult: {
+            pricePerSqm: "Price per sqm",
+            totalPrice: "Total price",
+            overUnderTitle: "Over/under valued",
+            askingPrice: "Asking price",
+            classification: "Classification",
+            diff: "Diff",
+            bandPrefix: "Band:",
+            bandSuffix: "around the model value",
+            undervalued: "Undervalued",
+            overvalued: "Overvalued",
+            fair: "Fairly priced",
+          },
+
+          saved: {
+            title: "Saved scenarios",
+            clear: "Clear",
+            clearConfirm: "Clear all saved scenarios?",
+            setAsA: "Set as Scenario A",
+            setAsB: "Set as Scenario B",
+            remove: "Remove",
+            removeTitle: "Remove",
+          },
+
+          units: {
+            sqm: "sqm",
+            rooms: "rooms",
+          },
+        },
+      }) as const,
+    [],
+  );
+
+  const t = TEXT[language];
+
+  const scenariosStorageKey = "spi_scenarios_v1";
+
+  const selectClassName = isDark
+    ? "w-full rounded-md border border-slate-700 px-3 py-2 bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+    : "w-full rounded-md border border-slate-400 px-3 py-2 bg-slate-50/90 text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-600/25";
+
+  const inputClassName = isDark
+    ? "w-full rounded-md border border-slate-700 px-3 py-2 bg-slate-950 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+    : "w-full rounded-md border border-slate-400 px-3 py-2 bg-slate-50/90 text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-600/25";
+
+  const compactSelectClassName = isDark
+    ? "h-9 rounded-md border border-slate-700 bg-slate-950/60 px-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+    : "h-9 rounded-md border border-slate-400 bg-slate-50/80 px-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-600/25";
 
   const defaultTransactionYear = Math.min(new Date().getFullYear(), 2024);
 
@@ -119,14 +422,189 @@ export default function Home() {
     monthly_fee: 3200,
     transaction_year: defaultTransactionYear,
   });
+
+  const [tab, setTab] = useState<TabKey>("predict");
+
+  const [askingPriceInput, setAskingPriceInput] = useState<string>("");
+
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [compareAId, setCompareAId] = useState<string>("");
+  const [compareBId, setCompareBId] = useState<string>("");
+
+  const [modelInfo, setModelInfo] = useState<ModelInfoResponse | null>(null);
+  const [modelInfoError, setModelInfoError] = useState<string | null>(null);
+  const [modelInfoLoading, setModelInfoLoading] = useState(false);
+
   const [result, setResult] = useState<PredictResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const askingPrice = useMemo(
+    () => toOptionalNumber(askingPriceInput),
+    [askingPriceInput],
+  );
+
+  const compareA = useMemo(
+    () => scenarios.find((s) => s.id === compareAId) ?? null,
+    [compareAId, scenarios],
+  );
+  const compareB = useMemo(
+    () => scenarios.find((s) => s.id === compareBId) ?? null,
+    [compareBId, scenarios],
+  );
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(themeStorageKey);
+      if (stored === "dark" || stored === "light") {
+        setTheme(stored);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    if (typeof window !== "undefined" && "matchMedia" in window) {
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      setTheme(prefersDark ? "dark" : "light");
+    }
+  }, [themeStorageKey]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(languageStorageKey);
+      if (stored === "sv" || stored === "en") {
+        setLanguage(stored);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    if (typeof navigator !== "undefined") {
+      const raw = (navigator.language ?? "").toLowerCase();
+      setLanguage(raw.startsWith("sv") ? "sv" : "en");
+    }
+  }, [languageStorageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(languageStorageKey, language);
+    } catch {
+      // ignore
+    }
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = language;
+    }
+  }, [language, languageStorageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(themeStorageKey, theme);
+    } catch {
+      // ignore
+    }
+    if (typeof document !== "undefined") {
+      document.documentElement.style.colorScheme = theme;
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(scenariosStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return;
+      const normalized = parsed
+        .filter((x): x is Scenario => typeof x === "object" && x !== null)
+        .map((s) => s as Scenario)
+        .filter((s) =>
+          typeof s.id === "string" &&
+          typeof s.created_at === "string" &&
+          typeof s.form === "object" &&
+          typeof s.result === "object",
+        );
+      setScenarios(normalized);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(scenariosStorageKey, JSON.stringify(scenarios));
+    } catch {
+      // ignore
+    }
+  }, [scenarios]);
+
+  useEffect(() => {
+    if (tab !== "about") return;
+
+    let cancelled = false;
+    async function run() {
+      setModelInfoLoading(true);
+      setModelInfoError(null);
+      try {
+        const resp = await fetch(`${apiBaseUrl}/model-info`, { method: "GET" });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = (await resp.json()) as ModelInfoResponse;
+        if (!cancelled) setModelInfo(data);
+      } catch (err) {
+        if (!cancelled)
+          setModelInfoError(err instanceof Error ? err.message : t.errors.unknown);
+      } finally {
+        if (!cancelled) setModelInfoLoading(false);
+      }
+    }
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBaseUrl, tab, t.errors.unknown]);
 
   function updateForm(patch: Partial<PredictRequest>) {
     setForm((s) => ({ ...s, ...patch }));
     setResult(null);
     setError(null);
+  }
+
+  function scenarioTitle(s: Scenario): string {
+    const year = s.form.transaction_year ?? "-";
+    const rooms = String(s.form.rooms).replace(".", ",");
+    return `${s.form.district} · ${s.form.area} ${t.units.sqm} · ${rooms} ${t.units.rooms} · ${year}`;
+  }
+
+  function loadScenario(s: Scenario) {
+    setForm(s.form);
+    setResult(s.result);
+    setError(null);
+    setLoading(false);
+    setAskingPriceInput(s.asking_price == null ? "" : String(Math.trunc(s.asking_price)));
+    setTab("predict");
+  }
+
+  function deleteScenario(id: string) {
+    setScenarios((prev) => prev.filter((s) => s.id !== id));
+    setCompareAId((v) => (v === id ? "" : v));
+    setCompareBId((v) => (v === id ? "" : v));
+  }
+
+  function saveScenario() {
+    if (!result) return;
+    const id =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : String(Date.now());
+    const scenario: Scenario = {
+      id,
+      created_at: new Date().toISOString(),
+      form,
+      result,
+      asking_price: askingPrice,
+    };
+    setScenarios((prev) => [scenario, ...prev].slice(0, 50));
   }
 
   async function onSubmit(e: FormEvent) {
@@ -150,53 +628,259 @@ export default function Home() {
       const data = (await resp.json()) as PredictResponse;
       setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(err instanceof Error ? err.message : t.errors.unknown);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950" />
+    <div
+      className={
+        isDark
+          ? "relative min-h-screen overflow-hidden text-slate-100"
+          : "relative min-h-screen overflow-hidden text-slate-900"
+      }
+    >
       <div
-        className="pointer-events-none absolute inset-0 text-cyan-400/30 opacity-30"
+        className={
+          isDark
+            ? "pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950"
+            : "pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-200 via-indigo-200 to-slate-300"
+        }
+      />
+      {isDark && (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0 text-fuchsia-500/30 opacity-40 blur-3xl"
+            style={{
+              backgroundImage:
+                "radial-gradient(860px circle at 92% 38%, currentColor 0%, transparent 62%)",
+            }}
+          />
+          <div
+            className="pointer-events-none absolute inset-0 text-white/22 opacity-32 blur-3xl"
+            style={{
+              backgroundImage:
+                "linear-gradient(135deg, currentColor 0%, transparent 58%)",
+            }}
+          />
+        </>
+      )}
+      {!isDark && (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0 text-cyan-700/18 opacity-16 blur-3xl"
+            style={{
+              backgroundImage:
+                "radial-gradient(900px circle at 12% 24%, currentColor 0%, transparent 64%)",
+            }}
+          />
+          <div
+            className="pointer-events-none absolute inset-0 text-fuchsia-700/14 opacity-14 blur-3xl"
+            style={{
+              backgroundImage:
+                "radial-gradient(860px circle at 92% 40%, currentColor 0%, transparent 64%)",
+            }}
+          />
+          <div
+            className="pointer-events-none absolute inset-0 text-white/55 opacity-10 blur-3xl"
+            style={{
+              backgroundImage:
+                "linear-gradient(135deg, currentColor 0%, transparent 60%)",
+            }}
+          />
+        </>
+      )}
+      <div
+        className={
+          isDark
+            ? "pointer-events-none absolute inset-0 text-cyan-400/30 opacity-30"
+            : "pointer-events-none absolute inset-0 text-cyan-800/30 opacity-28"
+        }
         style={{
           backgroundImage:
             "repeating-linear-gradient(90deg, currentColor 0 1px, transparent 1px 84px), repeating-linear-gradient(0deg, currentColor 0 1px, transparent 1px 84px)",
         }}
       />
+      {!isDark && (
+        <div
+          className="pointer-events-none absolute inset-0 text-cyan-900/35 opacity-22"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(90deg, currentColor 0 1px, transparent 1px 336px), repeating-linear-gradient(0deg, currentColor 0 1px, transparent 1px 336px)",
+          }}
+        />
+      )}
       <div
-        className="pointer-events-none absolute inset-0 text-fuchsia-500/25 opacity-25"
+        className={
+          isDark
+            ? "pointer-events-none absolute inset-0 text-fuchsia-500/25 opacity-25"
+            : "pointer-events-none absolute inset-0 text-fuchsia-700/22 opacity-16"
+        }
         style={{
           backgroundImage:
             "repeating-linear-gradient(135deg, currentColor 0 1px, transparent 1px 120px)",
         }}
       />
-      <div className="pointer-events-none absolute -top-24 left-1/2 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-cyan-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-28 right-0 h-[26rem] w-[26rem] rounded-full bg-fuchsia-500/10 blur-3xl" />
+      <div
+        className={
+          isDark
+            ? "pointer-events-none absolute -top-24 left-1/2 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-cyan-500/10 blur-3xl"
+            : "pointer-events-none absolute -top-24 left-1/2 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-cyan-500/6 blur-3xl"
+        }
+      />
+      <div
+        className={
+          isDark
+            ? "pointer-events-none absolute -bottom-28 right-0 h-[26rem] w-[26rem] rounded-full bg-fuchsia-500/10 blur-3xl"
+            : "pointer-events-none absolute -bottom-28 right-0 h-[26rem] w-[26rem] rounded-full bg-fuchsia-500/6 blur-3xl"
+        }
+      />
 
       <div className="relative p-8 sm:p-12">
         <div className="mx-auto max-w-3xl">
           <header className="mb-8 text-center">
-            <h1 className="text-3xl font-semibold tracking-tight">
-              <span className="bg-gradient-to-r from-cyan-300 to-fuchsia-400 bg-clip-text text-transparent">
+            <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight">
+              <span
+                className={
+                  isDark
+                    ? "bg-gradient-to-r from-cyan-300 to-fuchsia-400 bg-clip-text text-transparent"
+                    : "bg-gradient-to-r from-cyan-700 to-fuchsia-700 bg-clip-text text-transparent"
+                }
+              >
                 Stockholm Price Intelligence
               </span>
             </h1>
-            <p className="mt-2 text-sm text-slate-300">
-              Uppskatta pris per kvm och totalpris för bostadsrätt.
+
+            <p className={isDark ? "mt-2 text-base sm:text-lg leading-relaxed text-slate-300" : "mt-2 text-base sm:text-lg leading-relaxed text-slate-600"}>
+              {t.tagline}
             </p>
           </header>
 
           <main className="space-y-6">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+              <div />
+              <div className="flex items-center justify-center gap-2">
+                {([
+                  { key: "predict", label: t.tabs.predict },
+                  { key: "compare", label: t.tabs.compare },
+                  { key: "about", label: t.tabs.about },
+                ] as const).map((tabDef) => {
+                  const active = tab === tabDef.key;
+                  return (
+                    <button
+                      key={tabDef.key}
+                      type="button"
+                      onClick={() => setTab(tabDef.key)}
+                      className={
+                        active
+                          ? isDark
+                            ? "rounded-md border border-cyan-300/70 bg-gradient-to-r from-cyan-500/20 to-fuchsia-600/20 px-3 py-2 text-sm font-semibold text-slate-50 ring-2 ring-fuchsia-400/25"
+                            : "rounded-md border border-cyan-500/50 bg-gradient-to-r from-cyan-500/20 to-fuchsia-600/20 px-3 py-2 text-sm font-semibold text-slate-900 ring-2 ring-fuchsia-500/20"
+                          : isDark
+                            ? "rounded-md border border-slate-800 bg-slate-950/30 px-3 py-2 text-sm text-slate-300 hover:border-slate-700 hover:bg-slate-950/50"
+                            : "rounded-md border border-slate-400 bg-slate-50/70 px-3 py-2 text-sm text-slate-800 hover:border-slate-500 hover:bg-slate-50"
+                      }
+                    >
+                      {tabDef.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex justify-end gap-2">
+                <label className="sr-only" htmlFor="language-select">
+                  {t.languageLabel}
+                </label>
+                <select
+                  id="language-select"
+                  className={compactSelectClassName}
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value as Language)}
+                  aria-label={t.languageAria}
+                  title={t.languageLabel}
+                >
+                  <option value="sv">Svenska</option>
+                  <option value="en">English</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setTheme((prevTheme) => (prevTheme === "dark" ? "light" : "dark"))}
+                  className={
+                    isDark
+                      ? "group relative inline-flex h-9 w-16 items-center rounded-md border border-slate-700 bg-gradient-to-r from-cyan-500/15 via-slate-950/60 to-fuchsia-500/15 px-1 shadow-sm transition-colors hover:border-slate-600"
+                      : "group relative inline-flex h-9 w-16 items-center rounded-md border border-slate-400 bg-gradient-to-r from-cyan-500/10 via-slate-50/80 to-fuchsia-500/10 px-1 shadow-sm transition-colors hover:border-slate-500"
+                  }
+                  aria-label={isDark ? t.themeToLightAria : t.themeToDarkAria}
+                  title={isDark ? t.themeLightTitle : t.themeDarkTitle}
+                  role="switch"
+                  aria-checked={theme === "light"}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setTheme((prevTheme) => (prevTheme === "dark" ? "light" : "dark"));
+                    }
+                  }}
+                >
+                  <span
+                    className={
+                      isDark
+                        ? "pointer-events-none absolute -inset-1 rounded-md bg-gradient-to-r from-cyan-500/35 to-fuchsia-500/35 blur-md opacity-30 transition-opacity group-hover:opacity-55 group-focus-visible:opacity-70"
+                        : "pointer-events-none absolute -inset-1 rounded-md bg-gradient-to-r from-cyan-500/20 to-fuchsia-500/20 blur-md opacity-16 transition-opacity group-hover:opacity-28 group-focus-visible:opacity-36"
+                    }
+                  />
+                  <span
+                    className={
+                      isDark
+                        ? "pointer-events-none absolute left-1 top-1 h-7 w-7 translate-x-0 rounded-md border border-slate-600 bg-slate-900/80 shadow-sm transition-transform duration-200 ease-out"
+                        : "pointer-events-none absolute left-1 top-1 h-7 w-7 translate-x-7 rounded-md border border-slate-300 bg-slate-50 shadow-sm transition-transform duration-200 ease-out"
+                    }
+                  />
+                  <span
+                    className={
+                      isDark
+                        ? "pointer-events-none absolute inset-0 z-10 flex items-center justify-between px-2 text-slate-200"
+                        : "pointer-events-none absolute inset-0 z-10 flex items-center justify-between px-2 text-slate-700"
+                    }
+                  >
+                    <SunIcon
+                      className={
+                        isDark
+                          ? "h-4 w-4 text-cyan-200"
+                          : "h-4 w-4 text-slate-500"
+                      }
+                    />
+                    <MoonIcon
+                      className={
+                        isDark
+                          ? "h-4 w-4 text-slate-500"
+                          : "h-4 w-4 text-fuchsia-700"
+                      }
+                    />
+                  </span>
+                  <span
+                    className={
+                      isDark
+                        ? "absolute -inset-px rounded-md ring-0 focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                        : "absolute -inset-px rounded-md ring-0 focus-visible:ring-2 focus-visible:ring-cyan-600/25 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-200"
+                    }
+                  />
+                </button>
+              </div>
+            </div>
+
+            {tab === "predict" && (
             <form
               onSubmit={onSubmit}
-              className="rounded-xl border border-slate-800 bg-slate-950/60 p-5 backdrop-blur"
+              className={
+                isDark
+                  ? "rounded-xl border border-slate-800 bg-slate-950/60 p-5 backdrop-blur"
+                  : "rounded-xl border border-slate-300 bg-slate-50/80 p-5 backdrop-blur ring-1 ring-slate-200/70"
+              }
             >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="space-y-1">
-                <div className="text-sm font-medium">Boarea (kvm)</div>
+                <div className="text-sm font-medium">{t.labels.area}</div>
                 <select
                   className={selectClassName}
                   value={String(form.area)}
@@ -204,7 +888,11 @@ export default function Home() {
                   required
                 >
                   {areaOptions.map((v) => (
-                    <option key={v} value={v} className="bg-slate-950 text-slate-100">
+                    <option
+                      key={v}
+                      value={v}
+                      className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}
+                    >
                       {v}
                     </option>
                   ))}
@@ -212,7 +900,7 @@ export default function Home() {
               </label>
 
               <label className="space-y-1">
-                <div className="text-sm font-medium">Antal rum</div>
+                <div className="text-sm font-medium">{t.labels.rooms}</div>
                 <select
                   className={selectClassName}
                   value={String(form.rooms)}
@@ -220,7 +908,11 @@ export default function Home() {
                   required
                 >
                   {roomOptions.map((v) => (
-                    <option key={v} value={v} className="bg-slate-950 text-slate-100">
+                    <option
+                      key={v}
+                      value={v}
+                      className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}
+                    >
                       {String(v).replace(".", ",")}
                     </option>
                   ))}
@@ -228,7 +920,7 @@ export default function Home() {
               </label>
 
               <label className="space-y-1">
-                <div className="text-sm font-medium">Stadsdel / ort</div>
+                <div className="text-sm font-medium">{t.labels.district}</div>
                 <select
                   className={selectClassName}
                   value={form.district}
@@ -236,7 +928,11 @@ export default function Home() {
                   required
                 >
                   {districtOptions.map((v) => (
-                    <option key={v} value={v} className="bg-slate-950 text-slate-100">
+                    <option
+                      key={v}
+                      value={v}
+                      className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}
+                    >
                       {v}
                     </option>
                   ))}
@@ -244,7 +940,7 @@ export default function Home() {
               </label>
 
               <label className="space-y-1">
-                <div className="text-sm font-medium">Byggår</div>
+                <div className="text-sm font-medium">{t.labels.yearBuilt}</div>
                 <select
                   className={selectClassName}
                   value={String(form.year_built)}
@@ -252,7 +948,11 @@ export default function Home() {
                   required
                 >
                   {yearBuiltOptions.map((v) => (
-                    <option key={v} value={v} className="bg-slate-950 text-slate-100">
+                    <option
+                      key={v}
+                      value={v}
+                      className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}
+                    >
                       {v}
                     </option>
                   ))}
@@ -260,7 +960,7 @@ export default function Home() {
               </label>
 
               <label className="space-y-1">
-                <div className="text-sm font-medium">Transaktionsår</div>
+                <div className="text-sm font-medium">{t.labels.transactionYear}</div>
                 <select
                   className={selectClassName}
                   value={String(form.transaction_year ?? "")}
@@ -273,7 +973,11 @@ export default function Home() {
                   required
                 >
                   {transactionYearOptions.map((v) => (
-                    <option key={v} value={v} className="bg-slate-950 text-slate-100">
+                    <option
+                      key={v}
+                      value={v}
+                      className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}
+                    >
                       {v}
                     </option>
                   ))}
@@ -281,7 +985,7 @@ export default function Home() {
               </label>
 
               <label className="space-y-1 sm:col-span-2">
-                <div className="text-sm font-medium">Avgift (kr/mån)</div>
+                <div className="text-sm font-medium">{t.labels.monthlyFee}</div>
                 <select
                   className={selectClassName}
                   value={String(form.monthly_fee)}
@@ -289,53 +993,458 @@ export default function Home() {
                   required
                 >
                   {monthlyFeeOptions.map((v) => (
-                    <option key={v} value={v} className="bg-slate-950 text-slate-100">
+                    <option
+                      key={v}
+                      value={v}
+                      className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}
+                    >
                       {v}
                     </option>
                   ))}
                 </select>
               </label>
+
+              <label className="space-y-1 sm:col-span-2">
+                <div className="text-sm font-medium">{t.labels.askingPrice}</div>
+                <input
+                  inputMode="numeric"
+                  className={inputClassName}
+                  value={askingPriceInput}
+                  onChange={(e) => setAskingPriceInput(e.target.value)}
+                  placeholder={t.placeholders.askingPrice}
+                />
+              </label>
             </div>
 
               <div className="mt-5 flex items-center justify-between gap-3">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="rounded-md bg-gradient-to-r from-cyan-500 to-fuchsia-600 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
-                >
-                  {loading ? "Beräknar…" : "Predict"}
-                </button>
-                <div className="text-xs text-slate-300">
-                  API: <span className="font-mono">{apiBaseUrl}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="rounded-md bg-gradient-to-r from-cyan-400 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                  >
+                    {loading ? t.actions.calculating : t.actions.predict}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveScenario}
+                    disabled={!result}
+                    className={
+                      isDark
+                        ? "rounded-md border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm font-semibold text-slate-100 disabled:opacity-50"
+                        : "rounded-md border border-slate-400 bg-white/90 px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
+                    }
+                    title={result ? t.actions.saveTitleEnabled : t.actions.saveTitleDisabled}
+                  >
+                    {t.actions.save}
+                  </button>
+                </div>
+                <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>
+                  {t.meta.apiPrefix} <span className="font-mono">{apiBaseUrl}</span>
                 </div>
               </div>
             </form>
 
+            )}
+
+            {tab === "compare" && (
+              <div
+                className={
+                  isDark
+                    ? "rounded-xl border border-slate-800 bg-slate-950/60 p-5 backdrop-blur"
+                    : "rounded-xl border border-slate-300 bg-slate-50/80 p-5 backdrop-blur ring-1 ring-slate-200/70"
+                }
+              >
+                <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>
+                  {t.compare.intro}
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="space-y-1">
+                    <div className="text-sm font-medium">{t.compare.scenarioA}</div>
+                    <select
+                      className={selectClassName}
+                      value={compareAId}
+                      onChange={(e) => setCompareAId(e.target.value)}
+                    >
+                      <option
+                        value=""
+                        className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}
+                      >
+                        {t.compare.choose}
+                      </option>
+                      {scenarios.map((s) => (
+                        <option
+                          key={s.id}
+                          value={s.id}
+                          className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}
+                        >
+                          {scenarioTitle(s)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-1">
+                    <div className="text-sm font-medium">{t.compare.scenarioB}</div>
+                    <select
+                      className={selectClassName}
+                      value={compareBId}
+                      onChange={(e) => setCompareBId(e.target.value)}
+                    >
+                      <option
+                        value=""
+                        className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}
+                      >
+                        {t.compare.choose}
+                      </option>
+                      {scenarios.map((s) => (
+                        <option
+                          key={s.id}
+                          value={s.id}
+                          className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}
+                        >
+                          {scenarioTitle(s)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                {compareA && compareB && (
+                  <div
+                    className={
+                      isDark
+                        ? "mt-5 rounded-lg border border-slate-800 bg-slate-950/40 p-4"
+                        : "mt-5 rounded-lg border border-slate-300 bg-slate-50/70 p-4 ring-1 ring-slate-200/60"
+                    }
+                  >
+                    <div className="text-sm font-semibold">{t.compare.diffTitle}</div>
+
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.compare.totalPrice}</div>
+                        <div className="text-xl font-semibold tracking-tight">
+                          {formatSek(
+                            compareA.result.predicted_total_price -
+                              compareB.result.predicted_total_price,
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.compare.pricePerSqm}</div>
+                        <div className="text-xl font-semibold tracking-tight">
+                          {formatSek(
+                            compareA.result.predicted_price_per_sqm -
+                              compareB.result.predicted_price_per_sqm,
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={isDark ? "mt-3 text-sm text-slate-300" : "mt-3 text-sm text-slate-600"}>
+                      A: {compareA.result.model_version} · B: {compareB.result.model_version}
+                    </div>
+                  </div>
+                )}
+
+                {scenarios.length === 0 && (
+                  <div className={isDark ? "mt-4 text-sm text-slate-300" : "mt-4 text-sm text-slate-600"}>
+                    {t.compare.empty}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {tab === "about" && (
+              <div
+                className={
+                  isDark
+                    ? "rounded-xl border border-slate-800 bg-slate-950/60 p-5 backdrop-blur"
+                    : "rounded-xl border border-slate-300 bg-slate-50/80 p-5 backdrop-blur ring-1 ring-slate-200/70"
+                }
+              >
+                <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>
+                  {t.about.intro}
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div
+                    className={
+                      isDark
+                        ? "rounded-lg border border-slate-800 bg-slate-950/40 p-4"
+                        : "rounded-lg border border-slate-300 bg-slate-50/70 p-4 ring-1 ring-slate-200/60"
+                    }
+                  >
+                    <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.about.api}</div>
+                    <div className={isDark ? "mt-1 font-mono text-sm text-slate-100" : "mt-1 font-mono text-sm text-slate-900"}>
+                      {apiBaseUrl}
+                    </div>
+                  </div>
+
+                  <div
+                    className={
+                      isDark
+                        ? "rounded-lg border border-slate-800 bg-slate-950/40 p-4"
+                        : "rounded-lg border border-slate-300 bg-slate-50/70 p-4 ring-1 ring-slate-200/60"
+                    }
+                  >
+                    <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.about.latestPrediction}</div>
+                    <div className={isDark ? "mt-1 text-sm text-slate-100" : "mt-1 text-sm text-slate-900"}>
+                      {result
+                        ? `model=${result.model_version} · ${result.inference_ms.toFixed(1)}ms`
+                        : t.about.latestPredictionEmpty}
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className={
+                    isDark
+                      ? "mt-4 rounded-lg border border-slate-800 bg-slate-950/40 p-4"
+                      : "mt-4 rounded-lg border border-slate-300 bg-slate-50/70 p-4 ring-1 ring-slate-200/60"
+                  }
+                >
+                  <div className="text-sm font-semibold">{t.about.modelInfoTitle}</div>
+                  {modelInfoLoading && (
+                    <div className={isDark ? "mt-2 text-sm text-slate-300" : "mt-2 text-sm text-slate-600"}>{t.about.loading}</div>
+                  )}
+                  {modelInfoError && (
+                    <div className={isDark ? "mt-2 text-sm text-red-200" : "mt-2 text-sm text-red-700"}>
+                      {t.about.couldNotFetchPrefix} {modelInfoError}
+                    </div>
+                  )}
+                  {modelInfo && !modelInfoLoading && (
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.about.modelVersion}</div>
+                        <div className={isDark ? "text-sm text-slate-100" : "text-sm text-slate-900"}>
+                          {modelInfo.model_version}
+                        </div>
+                      </div>
+                      <div>
+                        <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.about.targetMode}</div>
+                        <div className={isDark ? "text-sm text-slate-100" : "text-sm text-slate-900"}>
+                          {modelInfo.target_mode}
+                        </div>
+                      </div>
+                      <div>
+                        <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.about.meanMae}</div>
+                        <div className={isDark ? "text-sm text-slate-100" : "text-sm text-slate-900"}>
+                          {modelInfo.metrics?.mean_mae == null
+                            ? "-"
+                            : formatSek(modelInfo.metrics.mean_mae)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.about.meanR2}</div>
+                        <div className={isDark ? "text-sm text-slate-100" : "text-sm text-slate-900"}>
+                          {modelInfo.metrics?.mean_r2 == null
+                            ? "-"
+                            : safeFixed(modelInfo.metrics.mean_r2, 3)}
+                        </div>
+                      </div>
+                      <div className={isDark ? "sm:col-span-2 text-sm text-slate-300" : "sm:col-span-2 text-sm text-slate-600"}>
+                        {t.about.tip}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
           {error && (
-            <div className="rounded-xl border border-red-900/40 bg-red-950/30 p-4 text-sm text-red-200">
+            <div
+              className={
+                isDark
+                  ? "rounded-xl border border-red-900/40 bg-red-950/30 p-4 text-sm text-red-200"
+                  : "rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900"
+              }
+            >
               {error}
             </div>
           )}
 
-          {result && (
-            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-5 backdrop-blur">
+          {tab === "predict" && result && (
+            <div
+              className={
+                isDark
+                  ? "rounded-xl border border-slate-800 bg-slate-950/60 p-5 backdrop-blur"
+                  : "rounded-xl border border-slate-300 bg-slate-50/80 p-5 backdrop-blur ring-1 ring-slate-200/70"
+              }
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <div className="text-sm text-slate-300">Pris per kvm</div>
+                  <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.predictResult.pricePerSqm}</div>
                   <div className="text-2xl font-semibold tracking-tight">
                     {formatSek(result.predicted_price_per_sqm)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-slate-300">Totalpris</div>
+                  <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.predictResult.totalPrice}</div>
                   <div className="text-2xl font-semibold tracking-tight">
                     {formatSek(result.predicted_total_price)}
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 text-xs text-slate-300">
+              {askingPrice != null && (
+                <div
+                  className={
+                    isDark
+                      ? "mt-4 rounded-lg border border-slate-800 bg-slate-950/40 p-4"
+                      : "mt-4 rounded-lg border border-slate-300 bg-slate-50/70 p-4 ring-1 ring-slate-200/60"
+                  }
+                >
+                  <div className="text-sm font-semibold">{t.predictResult.overUnderTitle}</div>
+                  {(() => {
+                    const modelValue = result.predicted_total_price;
+                    const band = 0.07;
+                    const low = modelValue * (1 - band);
+                    const high = modelValue * (1 + band);
+                    const diff = askingPrice - modelValue;
+                    const diffPct = (diff / modelValue) * 100;
+                    const label =
+                      askingPrice < low
+                        ? t.predictResult.undervalued
+                        : askingPrice > high
+                          ? t.predictResult.overvalued
+                          : t.predictResult.fair;
+                    return (
+                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.predictResult.askingPrice}</div>
+                          <div className={isDark ? "text-sm text-slate-100" : "text-sm text-slate-900"}>
+                            {formatSek(askingPrice)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.predictResult.classification}</div>
+                          <div className={isDark ? "text-sm font-semibold text-slate-100" : "text-sm font-semibold text-slate-900"}>
+                            {label}
+                          </div>
+                        </div>
+                        <div>
+                          <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.predictResult.diff}</div>
+                          <div className={isDark ? "text-sm text-slate-100" : "text-sm text-slate-900"}>
+                            {formatSek(diff)} ({diffPct.toFixed(1)}%)
+                          </div>
+                        </div>
+                        <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>
+                          {t.predictResult.bandPrefix} ±{Math.round(band * 100)}% {t.predictResult.bandSuffix}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              <div className={isDark ? "mt-4 text-sm text-slate-300" : "mt-4 text-sm text-slate-600"}>
                 model={result.model_version} · inference={result.inference_ms.toFixed(1)}ms
+              </div>
+            </div>
+          )}
+
+          {tab === "predict" && scenarios.length > 0 && (
+            <div
+              className={
+                isDark
+                  ? "rounded-xl border border-slate-800 bg-slate-950/60 p-5 backdrop-blur"
+                  : "rounded-xl border border-slate-300 bg-slate-50/80 p-5 backdrop-blur ring-1 ring-slate-200/70"
+              }
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold">{t.saved.title}</div>
+                <button
+                  type="button"
+                  className={
+                    isDark
+                      ? "text-sm text-slate-300 hover:text-slate-100"
+                      : "text-sm text-slate-600 hover:text-slate-900"
+                  }
+                  onClick={() => {
+                    if (confirm(t.saved.clearConfirm)) {
+                      setScenarios([]);
+                      setCompareAId("");
+                      setCompareBId("");
+                    }
+                  }}
+                >
+                  {t.saved.clear}
+                </button>
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {scenarios.map((s) => (
+                  <div
+                    key={s.id}
+                    className={
+                      isDark
+                        ? "flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2"
+                        : "flex items-center justify-between gap-3 rounded-lg border border-slate-300 bg-slate-50/70 px-3 py-2 ring-1 ring-slate-200/60"
+                    }
+                  >
+                    <button
+                      type="button"
+                      className={
+                        isDark
+                          ? "text-left text-sm text-slate-100 hover:underline"
+                          : "text-left text-sm text-slate-900 hover:underline"
+                      }
+                      onClick={() => loadScenario(s)}
+                    >
+                      {scenarioTitle(s)}
+                      <div className={isDark ? "mt-1 text-sm text-slate-300" : "mt-1 text-sm text-slate-600"}>
+                        {formatSek(s.result.predicted_total_price)} · {s.result.model_version}
+                      </div>
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className={
+                          isDark
+                            ? "rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1 text-sm text-slate-100"
+                            : "rounded-md border border-slate-400 bg-slate-50/80 px-2 py-1 text-sm text-slate-900"
+                        }
+                        onClick={() => {
+                          setCompareAId(s.id);
+                          setTab("compare");
+                        }}
+                        title={t.saved.setAsA}
+                      >
+                        A
+                      </button>
+                      <button
+                        type="button"
+                        className={
+                          isDark
+                            ? "rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1 text-sm text-slate-100"
+                            : "rounded-md border border-slate-400 bg-slate-50/80 px-2 py-1 text-sm text-slate-900"
+                        }
+                        onClick={() => {
+                          setCompareBId(s.id);
+                          setTab("compare");
+                        }}
+                        title={t.saved.setAsB}
+                      >
+                        B
+                      </button>
+                      <button
+                        type="button"
+                        className={
+                          isDark
+                            ? "text-sm text-slate-300 hover:text-slate-100"
+                            : "text-sm text-slate-600 hover:text-slate-900"
+                        }
+                        onClick={() => deleteScenario(s.id)}
+                        title={t.saved.removeTitle}
+                      >
+                        {t.saved.remove}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

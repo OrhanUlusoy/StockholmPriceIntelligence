@@ -1,164 +1,124 @@
 # Stockholm Price Intelligence
 
-Predicts Stockholm apartment (bostadsrätt) market value using structured housing features.
+End-to-end ML + web app that predicts Stockholm apartment (bostadsrätt) value from structured features.
 
-**Target**: price per square meter (SEK/kvm) + derived total price.
+- **Outputs**: predicted SEK/kvm and derived total price
+- **UI**: Next.js (TypeScript + Tailwind)
+- **API**: FastAPI (`POST /predict`, `GET /health`)
+- **Training**: scikit-learn experiments → exported artifacts (model + preprocessor)
 
-## Features
-- Reproducible training via `params.json` + saved artifacts (`backend/models/*.pkl`)
-- Experiment logging to JSON (`backend/reports/metrics/*.json`)
-- FastAPI inference service (`POST /predict`) with latency logging (JSONL)
-- Next.js + Tailwind single-page UI
-- DVC pipeline skeleton for data/model versioning
-- GitHub Actions CI: lint/test/build + Docker build
+## Architecture
+```mermaid
+flowchart LR
+	subgraph Data["Data"]
+		direction TB
+		SCB["SCB export<br/>CSV (raw)"]
+		SYN["Synthetic generator<br/>backend/scripts/make_synth_data.py"]
+		PROC["Processed dataset<br/>data/processed/*.csv"]
+
+		SCB --> PROC
+		SYN --> PROC
+	end
+
+	subgraph Training["Training"]
+		direction TB
+		PARAMS["Config<br/>params.json / params_full.json"]
+		RUN["Experiment runner<br/>backend/scripts/run_experiments.py"]
+		ART["Artifacts<br/>backend/models/model_*.pkl<br/>backend/models/preprocessor_*.pkl"]
+		MET["Metrics<br/>backend/reports/metrics*/**.json"]
+
+		PARAMS --> RUN
+		PROC --> RUN
+		RUN --> ART
+		RUN --> MET
+	end
+
+	subgraph Serving["Serving"]
+		direction TB
+		API["FastAPI<br/>POST /predict<br/>GET /health"]
+		LOGS["Prediction logs<br/>logs/predictions.jsonl<br/>(relative to backend)"]
+
+		ART --> API
+		API --> LOGS
+	end
+
+	subgraph UI["UI"]
+		direction TB
+		WEB["Next.js<br/>localhost:3000"]
+	end
+
+	WEB <--> API
+```
 
 ## Quickstart (local)
 
-### 1) Backend: install
-From repo root:
+### Prereqs
+- Python 3.11+
+- Node.js (CI uses 22)
 
-```bash
-cd backend
-python -m venv .venv
-./.venv/Scripts/python -m pip install -U pip
-./.venv/Scripts/python -m pip install -e .[dev]
+### 1) Backend: install
+From repo root (PowerShell):
+
+```powershell
+python -m venv backend/.venv
+backend/.venv/Scripts/python -m pip install -U pip
+backend/.venv/Scripts/python -m pip install -e backend[dev]
 ```
 
-### 2) Training (example)
-This repo includes a synthetic data generator so you can test end-to-end before adding SCB data.
+### 2) Train (optional)
 
-From repo root:
+#### Full-feature synthetic model (recommended for demo)
+This trains a model where **all UI inputs influence the prediction**.
 
-```bash
-./.venv/Scripts/python backend/scripts/make_synth_data.py --out data/processed/train.csv --n 3000
-./.venv/Scripts/python backend/scripts/run_experiments.py --params params.json --model baseline --version v1
+```powershell
+backend/.venv/Scripts/python backend/scripts/make_synth_data.py --out data/processed/train_full.csv --n 20000
+backend/.venv/Scripts/python backend/scripts/run_experiments.py --params params_full.json --model rf --version full_v1
 ```
 
 Artifacts created:
-- `backend/models/model_v1.pkl`
-- `backend/models/preprocessor_v1.pkl`
+- `backend/models/model_full_v1.pkl`
+- `backend/models/preprocessor_full_v1.pkl`
+
+#### SCB data (optional)
+- Place your export at `data/raw/scb.csv` (or change `params.json`)
+- Map columns via `params.json:data.column_map` (SCB exports vary)
+
+```powershell
+backend/.venv/Scripts/python backend/scripts/prepare_data.py --params params.json
+backend/.venv/Scripts/python backend/scripts/run_experiments.py --params params.json --model baseline --version scb_v1
+```
 
 ### 3) Run API
+
+#### One-command start (SCB model, port 8000)
+```powershell
+powershell -ExecutionPolicy Bypass -File backend/scripts/run_api_scb.ps1
+```
+
+#### One-command start (full-feature model, port 8001)
+```powershell
+powershell -ExecutionPolicy Bypass -File backend/scripts/run_api_full.ps1
+```
+
+Health check:
+- `http://localhost:8000/health` (SCB)
+- `http://localhost:8001/health` (full-feature)
+
+Prediction logs (default): `backend/logs/predictions.jsonl`
+
+### 4) Frontend
 From repo root:
 
-```bash
-cd backend
-./.venv/Scripts/python -m uvicorn spi_api.main:app --host 0.0.0.0 --port 8000
-```
-
-#### One-command start (SCB model)
-If you want to run the API using the SCB-trained artifacts (sets env vars + starts Uvicorn):
-
-- Git Bash:
-
-```bash
-cd backend
-./scripts/run_api_scb.sh
-```
-
-- PowerShell:
-
 ```powershell
-cd backend
-./scripts/run_api_scb.ps1
-```
-
-If port `8000` is already in use, run on a different port:
-
-```powershell
-cd backend
-$env:PORT = "8001"
-./scripts/run_api_scb.ps1
-```
-
-To see what's using port 8000 (PowerShell):
-
-```powershell
-Get-NetTCPConnection -LocalPort 8000 | Select-Object -First 5
-```
-
-To stop the owning process (PowerShell):
-
-```powershell
-$pid = (Get-NetTCPConnection -LocalPort 8000).OwningProcess | Select-Object -First 1
-Stop-Process -Id $pid -Force
-```
-
-If PowerShell blocks scripts, run:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run_api_scb.ps1
-```
-
-#### Set env vars (Windows shells)
-If you're using **Git Bash (MINGW64)**, use `export`:
-
-```bash
-cd backend
-export MODEL_PATH=models/model_scb_v2.pkl
-export PREPROCESSOR_PATH=models/preprocessor_scb_v2.pkl
-export MODEL_VERSION=scb_v2
-export TARGET_MODE=total_price
-./.venv/Scripts/python -m uvicorn spi_api.main:app --host 0.0.0.0 --port 8000
-```
-
-If you're using **PowerShell**, use `$env:`:
-
-```powershell
-cd backend
-$env:MODEL_PATH = "models/model_scb_v2.pkl"
-$env:PREPROCESSOR_PATH = "models/preprocessor_scb_v2.pkl"
-$env:MODEL_VERSION = "scb_v2"
-$env:TARGET_MODE = "total_price"
-./.venv/Scripts/python -m uvicorn spi_api.main:app --host 0.0.0.0 --port 8000
-```
-
-If you're using **CMD**, use `set`:
-
-```bat
-cd backend
-set MODEL_PATH=models\model_scb_v2.pkl
-set PREPROCESSOR_PATH=models\preprocessor_scb_v2.pkl
-set MODEL_VERSION=scb_v2
-set TARGET_MODE=total_price
-.\.venv\Scripts\python -m uvicorn spi_api.main:app --host 0.0.0.0 --port 8000
-```
-
-Health check: `GET http://localhost:8000/health`
-
-Test predict:
-
-- Git Bash (robust quoting):
-
-```bash
-cat <<'JSON' | curl -sS -X POST "http://localhost:8000/predict" -H "Content-Type: application/json" --data-binary @-
-{"area":65,"rooms":2,"district":"Stockholms län","year_built":1985,"monthly_fee":3500,"transaction_year":2022}
-JSON
-```
-
-- PowerShell (recommended; avoids the `curl` alias):
-
-```powershell
-$body = @{
-	area = 65
-	rooms = 2
-	district = "Stockholms län"
-	year_built = 1985
-	monthly_fee = 3500
-	transaction_year = 2022
-} | ConvertTo-Json
-
-Invoke-RestMethod -Method Post -Uri "http://localhost:8000/predict" -ContentType "application/json" -Body $body
-```
-
-### 4) Run frontend
-From repo root:
-
-```bash
 cd frontend
-copy .env.example .env.local
 npm ci
 npm run dev
+```
+
+By default the UI calls `http://localhost:8000`. To point it at the full-feature API, create `frontend/.env.local`:
+
+```ini
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8001
 ```
 
 Open: `http://localhost:3000`
@@ -174,7 +134,8 @@ Request:
 	"rooms": 2,
 	"district": "Södermalm",
 	"year_built": 1998,
-	"monthly_fee": 3200
+	"monthly_fee": 3200,
+	"transaction_year": 2022
 }
 ```
 
@@ -184,64 +145,78 @@ Response:
 {
 	"predicted_price_per_sqm": 72000,
 	"predicted_total_price": 4680000,
-	"model_version": "v1",
+	"model_version": "full_v1",
 	"inference_ms": 12.3
 }
 ```
 
-Inference logging (default): `backend/logs/predictions.jsonl`
+## Metrics
+- Per-run metrics: `backend/reports/metrics*/run_*.json`
+- Latest metrics: `backend/reports/metrics*/latest.json`
 
-## Experiments
-Metrics are logged per run to `backend/reports/metrics/run_*.json` and also written to `backend/reports/metrics/latest.json`.
+## CI
+GitHub Actions workflow: `.github/workflows/ci.yml`
+- Backend: ruff + pytest
+- Frontend: lint + build
+- Docker: builds `backend/Dockerfile`
 
-Example results (synthetic data):
+## Troubleshooting
+- **UI loads but no result**: change inputs and click **Predict** again.
+- **Prediction not changing**: the SCB model may not use every UI feature; use the full-feature model for a demo where all inputs affect the output.
+- **API not reachable**: ensure Uvicorn is listening on `8000` (SCB) or `8001` (full-feature).
 
-| Model | Version tag | MAE (SEK/kvm) | RMSE (SEK/kvm) | R² |
-|---|---:|---:|---:|---:|
-| Linear Regression (baseline) | v1 | 3183.93 | 3981.77 | 0.8784 |
-| RandomForestRegressor | v2 | 3398.33 | 4237.46 | 0.8625 |
-| HistGradientBoostingRegressor | v3 | 3616.34 | 4512.29 | 0.8438 |
+## Optional
 
-## DVC (data/model versioning)
-`dvc.yaml` is included as a starting point with two stages:
-- `prepare`: `data/raw/*.csv` → `data/processed/train.csv`
-- `train`: trains model and writes artifacts/metrics
-
-Install DVC and run:
+### DVC (data/model versioning)
+`dvc.yaml` is included as a starting point for `prepare` and `train` stages.
 
 ```bash
 dvc init
 dvc repro
 ```
 
-### Supplying SCB data
-Put your raw SCB export at `data/raw/scb.csv` (or update `params.json:data.raw_csv`).
-
-Because SCB column names vary between exports, use `params.json:data.column_map` to map your raw columns to the canonical names used in this project:
-- `area`, `rooms`, `district`, `year_built`, `monthly_fee`, `transaction_year`
-- either provide `price_per_sqm`, or provide `total_price` + `area` (then `price_per_sqm` is computed)
-
-The prepare stage writes a simple profile report to `backend/reports/data/summary.json`.
-
-### Fetching from SCB API (optional)
-If you have a PxWeb v2 “tables/TABxxxx/data?...” link, it often returns PC-Axis (`.px`). This repo includes a helper that converts it to CSV:
-
-```bash
-python backend/scripts/fetch_scb_api.py --url "<paste your SCB v2 URL here>" --out data/raw/scb.csv
-python backend/scripts/prepare_data.py --params params.json
-```
-
-For TAB1151 / “Medianpris i tkr”, `params.json:data.target_scale` is set to `1000` so the model learns in SEK.
-
-## Docker (backend)
-Dockerfile is in `backend/Dockerfile`.
-
+### Docker (backend)
 ```bash
 docker build -t spi-backend -f backend/Dockerfile backend
-docker run -p 8000:8000 -v %cd%/backend/models:/app/models spi-backend
+docker run -p 8000:8000 spi-backend
 ```
 
-## Success criteria
-- Primary: MAE (SEK)
-- Secondary: RMSE, R²
-- Inference latency goal: <200ms per prediction (hardware-dependent)
+## Deploy (public link)
+
+This project is easiest to deploy as:
+- **Backend API**: Render (Docker web service)
+- **Frontend**: Vercel (Next.js)
+
+### 1) Deploy backend (Render)
+1. Push the repo to GitHub.
+2. In Render: **New** → **Web Service** → connect the repo.
+3. Select **Docker** and set **Root Directory** to `backend`.
+4. Add environment variables (example: SCB model):
+	- `MODEL_PATH=models/model_scb_v2.pkl`
+	- `PREPROCESSOR_PATH=models/preprocessor_scb_v2.pkl`
+	- `MODEL_VERSION=scb_v2`
+	- `TARGET_MODE=total_price`
+	- `METRICS_PATH=reports/metrics/latest.json`
+	- Optional (recommended after frontend is deployed):
+	  - `CORS_ALLOW_ORIGIN=https://<your-vercel-domain>`
+
+Render provides `PORT` automatically; the container will listen on it.
+
+Verify backend after deploy:
+- Open `https://<your-render-service>/health` → should return `{ "ok": true }`
+- Open `https://<your-render-service>/model-info`
+
+### 2) Deploy frontend (Vercel)
+1. In Vercel: **Add New** → **Project** → import the repo.
+2. Set **Root Directory** to `frontend`.
+3. Add environment variable:
+	- `NEXT_PUBLIC_API_BASE_URL=https://<your-render-service>`
+4. Deploy.
+
+Verify frontend:
+- Open `https://<your-vercel-domain>`
+- Run a prediction (tab **Predict/Prediktera**) and confirm results.
+
+### Common gotchas
+- If the UI shows network errors, confirm `NEXT_PUBLIC_API_BASE_URL` is set in Vercel and that the backend `/health` is reachable.
+- If you set `CORS_ALLOW_ORIGIN`, ensure it matches your deployed frontend origin exactly (including `https://`).

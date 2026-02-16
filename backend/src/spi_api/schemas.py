@@ -17,3 +17,16 @@ class PredictResponse(BaseModel):
     predicted_total_price: float
     model_version: str
     inference_ms: float
+
+
+class ModelMetrics(BaseModel):
+    mean_mae: float | None = None
+    mean_rmse: float | None = None
+    mean_r2: float | None = None
+
+
+class ModelInfoResponse(BaseModel):
+    model_version: str
+    target_mode: str
+    metrics_path: str | None = None
+    metrics: ModelMetrics | None = None

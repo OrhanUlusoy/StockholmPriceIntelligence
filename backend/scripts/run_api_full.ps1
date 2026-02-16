@@ -18,6 +18,7 @@ $env:MODEL_PATH = "models/model_full_v1.pkl"
 $env:PREPROCESSOR_PATH = "models/preprocessor_full_v1.pkl"
 $env:MODEL_VERSION = "full_v1"
 $env:TARGET_MODE = "total_price"
+$env:METRICS_PATH = "reports/metrics_full/latest.json"
 
 if (-not $env:HOST) { $env:HOST = "0.0.0.0" }
 if (-not $env:PORT) { $env:PORT = "8001" }
