@@ -5,7 +5,6 @@ from itertools import product
 
 import pandas as pd
 
-
 _KV_RE = re.compile(r"^\s*([A-Z\-]+)(?:\(\"([^\"]+)\"\))?\s*=\s*(.*);\s*$")
 
 
@@ -25,9 +24,7 @@ def _parse_dims(meta: dict) -> tuple[list[str], list[str]]:
 
 def _dim_labels(meta: dict, dim: str) -> list[str] | None:
     # Prefer VALUES over CODES (labels are nicer)
-    key = f"VALUES\"{dim}\""
-    # meta keys are stored as base + optional (dim)
-    # We'll store them as e.g. VALUES|Region in loader below
+    # meta keys are stored as e.g. VALUES|Region in loader below
     return meta.get(f"VALUES|{dim}")
 
 

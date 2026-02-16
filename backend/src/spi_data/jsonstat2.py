@@ -37,7 +37,10 @@ def jsonstat2_to_frame(payload: dict, *, value_col: str = "value") -> pd.DataFra
             codes = [str(x) for x in index]
         elif isinstance(index, dict):
             # index: code -> position
-            codes_by_pos = sorted(((int(pos), str(code)) for code, pos in index.items()), key=lambda x: x[0])
+            codes_by_pos = sorted(
+                ((int(pos), str(code)) for code, pos in index.items()),
+                key=lambda x: x[0],
+            )
             codes = [code for _, code in codes_by_pos]
         else:
             # fallback: labels keys

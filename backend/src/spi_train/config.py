@@ -83,11 +83,13 @@ def load_params(params_path: str | Path) -> Params:
             raw.get("artifacts", {}).get("preprocessor_prefix", "preprocessor_")
         ),
     )
-    reports_cfg = ReportsConfig(dir=str(raw.get("reports", {}).get("dir", "backend/reports/metrics")))
+    reports_dir = raw.get("reports", {}).get("dir", "backend/reports/metrics")
+    reports_cfg = ReportsConfig(dir=str(reports_dir))
 
     models: dict[str, ModelSpec] = {}
     for name, spec in raw.get("models", {}).items():
-        models[name] = ModelSpec(type=str(spec.get("type")), params={k: v for k, v in spec.items() if k != "type"})
+        params = {k: v for k, v in spec.items() if k != "type"}
+        models[name] = ModelSpec(type=str(spec.get("type")), params=params)
 
     return Params(
         data=data_cfg,

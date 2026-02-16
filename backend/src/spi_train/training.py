@@ -9,7 +9,6 @@ from time import perf_counter
 
 import joblib
 import numpy as np
-import pandas as pd
 from sklearn.model_selection import KFold
 
 from spi_train.config import Params

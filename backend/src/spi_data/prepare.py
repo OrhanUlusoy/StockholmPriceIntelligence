@@ -90,7 +90,8 @@ def prepare_dataset(
     if missing:
         raise ValueError(
             "Processed dataset is missing required canonical columns: "
-            f"{missing}. Update params.json:data.column_map to map your raw columns and/or adjust feature list."
+            f"{missing}. Update params.json:data.column_map to map "
+            "your raw columns and/or adjust feature list."
         )
 
     if "district" in df.columns:
