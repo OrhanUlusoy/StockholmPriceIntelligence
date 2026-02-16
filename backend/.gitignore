@@ -10,3 +10,17 @@ models/
 logs/
 data/
 reports/
+
+# Keep most artifacts out of git, but include the small demo artifacts needed for
+# Docker deploys (Render) so the image can COPY them.
+!models/
+!models/model_scb_v1.pkl
+!models/preprocessor_scb_v1.pkl
+!models/model_scb_v2.pkl
+!models/preprocessor_scb_v2.pkl
+
+!reports/
+!reports/metrics/
+!reports/metrics/latest.json
+!reports/metrics_full/
+!reports/metrics_full/latest.json

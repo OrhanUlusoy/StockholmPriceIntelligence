@@ -1,0 +1,75 @@
+{
+  "run": {
+    "model_name": "baseline",
+    "model_type": "linear",
+    "started_at_utc": "2026-02-12T16:26:30.077673+00:00",
+    "duration_s": 0.04350439994595945,
+    "cv_folds": 5,
+    "fold_metrics": [
+      {
+        "fold": 1,
+        "mae": 174539.14953083993,
+        "rmse": 214231.02831499185,
+        "r2": 0.9506125861492302
+      },
+      {
+        "fold": 2,
+        "mae": 91163.4482758522,
+        "rmse": 110951.75788199338,
+        "r2": 0.984673239009337
+      },
+      {
+        "fold": 3,
+        "mae": 147519.20959495901,
+        "rmse": 170825.4074225103,
+        "r2": 0.9465635589823975
+      },
+      {
+        "fold": 4,
+        "mae": 156505.63218390942,
+        "rmse": 201877.3717843011,
+        "r2": -0.32671901901075495
+      },
+      {
+        "fold": 5,
+        "mae": 72115.08635286093,
+        "rmse": 88676.77100182057,
+        "r2": 0.9756997227586238
+      }
+    ],
+    "mean_mae": 128368.50518768429,
+    "mean_rmse": 157312.46728112345,
+    "mean_r2": 0.7061660175777666
+  },
+  "params": {
+    "model": "linear",
+    "model_params": {},
+    "data": {
+      "train_csv": "data/processed/train.csv",
+      "target_col": "total_price",
+      "numeric_features": [
+        "transaction_year"
+      ],
+      "categorical_features": [
+        "district"
+      ],
+      "outliers": {
+        "enabled": true,
+        "method": "iqr_clip",
+        "k": 1.5
+      }
+    },
+    "train": {
+      "random_state": 42,
+      "cv_folds": 5
+    }
+  },
+  "artifacts": {
+    "model_path": "backend/models/model_scb_v2.pkl",
+    "preprocessor_path": "backend/models/preprocessor_scb_v2.pkl",
+    "version_tag": "scb_v2"
+  },
+  "env": {
+    "model_version_env": null
+  }
+}
