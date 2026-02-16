@@ -18,14 +18,54 @@ def main() -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     rng = np.random.default_rng(42)
-    districts = np.array(["Södermalm", "Kungsholmen", "Vasastan", "Östermalm", "Unknown"])
+    districts = np.array(
+        [
+            "Södermalm",
+            "Kungsholmen",
+            "Vasastan",
+            "Östermalm",
+            "Norrmalm",
+            "Bromma",
+            "Hägersten-Liljeholmen",
+            "Enskede-Årsta-Vantör",
+            "Farsta",
+            "Skärholmen",
+            "Spånga-Tensta",
+            "Rinkeby-Kista",
+            "Älvsjö",
+            "Skarpnäck",
+            "Stockholm",
+            "Solna",
+            "Sundbyberg",
+            "Nacka",
+            "Lidingö",
+            "Täby",
+            "Danderyd",
+            "Järfälla",
+            "Sollentuna",
+            "Upplands Väsby",
+            "Vallentuna",
+            "Värmdö",
+            "Tyresö",
+            "Haninge",
+            "Huddinge",
+            "Botkyrka",
+            "Salem",
+            "Ekerö",
+            "Sigtuna",
+            "Nynäshamn",
+            "Vaxholm",
+            "Österåker",
+            "Unknown",
+        ]
+    )
 
-    area = rng.uniform(20, 140, size=args.n)
-    rooms = np.clip(rng.normal(2.5, 1.0, size=args.n), 1, 7)
-    year_built = rng.integers(1880, 2024, size=args.n)
-    monthly_fee = np.clip(rng.normal(3500, 1200, size=args.n), 500, 12000)
-    transaction_year = rng.integers(2012, 2026, size=args.n)
-    district = rng.choice(districts, size=args.n, p=[0.28, 0.18, 0.22, 0.22, 0.10])
+    area = rng.uniform(20, 300, size=args.n)
+    rooms = np.clip(rng.normal(2.6, 1.2, size=args.n), 1, 10)
+    year_built = rng.integers(1850, 2025, size=args.n)
+    monthly_fee = np.clip(rng.normal(3500, 1600, size=args.n), 0, 20000)
+    transaction_year = rng.integers(2000, 2025, size=args.n)
+    district = rng.choice(districts, size=args.n)
 
     base = 45000
     district_premium = {
@@ -35,14 +75,26 @@ def main() -> int:
         "Kungsholmen": 15000,
         "Unknown": 0,
     }
-    premium = np.array([district_premium[d] for d in district], dtype=float)
+    premium = np.array([district_premium.get(d, 0) for d in district], dtype=float)
     age_penalty = np.clip((2026 - year_built) * 70, 0, 12000)
     fee_penalty = (monthly_fee - 2500) * 1.2
     year_trend = (transaction_year - 2015) * 900
     noise = rng.normal(0, 4000, size=args.n)
 
-    price_per_sqm = base + premium + year_trend - age_penalty - fee_penalty + noise
+    size_effect = np.clip((area - 60) * -18, -3500, 2500)
+    room_effect = np.clip((rooms - 2.5) * 650, -2500, 4500)
+    price_per_sqm = (
+        base
+        + premium
+        + year_trend
+        + size_effect
+        + room_effect
+        - age_penalty
+        - fee_penalty
+        + noise
+    )
     price_per_sqm = np.clip(price_per_sqm, 25000, 140000)
+    total_price = price_per_sqm * area
 
     df = pd.DataFrame(
         {
@@ -53,6 +105,7 @@ def main() -> int:
             "monthly_fee": monthly_fee,
             "transaction_year": transaction_year,
             "price_per_sqm": price_per_sqm,
+            "total_price": total_price,
         }
     )
     df.to_csv(out_path, index=False)
