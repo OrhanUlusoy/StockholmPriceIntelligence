@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: StockholmPriceIntelligence
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    rootDir: backend
+    region: oregon
+    plan: free
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: MODEL_PATH
+        value: models/model_v1.pkl
+      - key: PREPROCESSOR_PATH
+        value: models/preprocessor_v1.pkl
+      - key: MODEL_VERSION
+        value: v1
+      - key: PREDICTION_LOG_PATH
+        value: logs/predictions.jsonl
