@@ -1,11 +1,14 @@
 name: deploy
 
 on:
-  push:
+  workflow_run:
+    workflows: [ci]
     branches: [main]
+    types: [completed]
 
 jobs:
   deploy-frontend:
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +35,7 @@ jobs:
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
 
   deploy-backend:
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Render deploy
