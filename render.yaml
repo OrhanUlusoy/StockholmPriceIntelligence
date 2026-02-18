@@ -11,10 +11,10 @@ services:
     healthCheckPath: /health
     envVars:
       - key: MODEL_PATH
-        value: models/model_v1.pkl
+        value: models/model_full_v1.pkl
       - key: PREPROCESSOR_PATH
-        value: models/preprocessor_v1.pkl
+        value: models/preprocessor_full_v1.pkl
       - key: MODEL_VERSION
-        value: v1
+        value: full_v1
       - key: PREDICTION_LOG_PATH
         value: logs/predictions.jsonl
