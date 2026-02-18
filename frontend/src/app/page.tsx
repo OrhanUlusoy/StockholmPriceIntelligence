@@ -1507,11 +1507,11 @@ export default function Home() {
           <span
             className={
               isDark
-                ? "text-xs text-slate-600 select-none"
-                : "text-xs text-slate-400 select-none"
+                ? "text-xs text-slate-500/70 select-none"
+                : "text-xs text-slate-400/70 select-none"
             }
           >
-            @OrhanUlusoy
+            Built by @OrhanUlusoy
           </span>
         </footer>
       </div>
