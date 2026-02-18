@@ -1502,6 +1502,18 @@ export default function Home() {
           )}
           </main>
         </div>
+
+        <footer className="mt-16 pb-6 text-center">
+          <span
+            className={
+              isDark
+                ? "text-xs text-slate-600 select-none"
+                : "text-xs text-slate-400 select-none"
+            }
+          >
+            @OrhanUlusoy
+          </span>
+        </footer>
       </div>
     </div>
   );
