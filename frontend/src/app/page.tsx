@@ -1,7 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
+
+const PriceTrendChart = dynamic(() => import("./PriceTrendChart"), {
+  ssr: false,
+});
 
 type PredictRequest = {
   area: number;
@@ -38,7 +43,7 @@ type Scenario = {
   asking_price: number | null;
 };
 
-type TabKey = "predict" | "compare" | "about";
+type TabKey = "predict" | "compare" | "valuate" | "about";
 
 type Theme = "dark" | "light";
 
@@ -140,7 +145,7 @@ export default function Home() {
         sv: {
           tagline: "Uppskatta pris per kvm och totalpris för bostadsrätt.",
 
-          tabs: { predict: "Prediktera", compare: "Jämför", about: "Om" },
+          tabs: { predict: "Prediktera", compare: "Jämför", valuate: "Värdera din bostad", about: "Om" },
 
           languageLabel: "Språk",
           languageAria: "Välj språk",
@@ -235,11 +240,24 @@ export default function Home() {
             sqm: "kvm",
             rooms: "rum",
           },
+
+          chart: {
+            year: "År",
+            price: "Estimerat totalpris",
+            loading: "Laddar prishistorik…",
+          },
+
+          valuate: {
+            disclaimer:
+              "Observera: detta är en uppskattning baserad på en maskininlärningsmodell och är inte en officiell värdering. Verkligt marknadsvärde kan skilja sig.",
+            resultTitle: "Uppskattat värde",
+            resultLabel: "Din bostad är värd uppskattningsvis",
+          },
         },
         en: {
           tagline: "Estimate price per sqm and total price for condos.",
 
-          tabs: { predict: "Predict", compare: "Compare", about: "About" },
+          tabs: { predict: "Predict", compare: "Compare", valuate: "Value your home", about: "About" },
 
           languageLabel: "Language",
           languageAria: "Select language",
@@ -333,6 +351,19 @@ export default function Home() {
           units: {
             sqm: "sqm",
             rooms: "rooms",
+          },
+
+          chart: {
+            year: "Year",
+            price: "Estimated total price",
+            loading: "Loading price history…",
+          },
+
+          valuate: {
+            disclaimer:
+              "Note: this is an estimate based on a machine learning model and is not an official appraisal. Actual market value may differ.",
+            resultTitle: "Estimated value",
+            resultLabel: "Your home is estimated to be worth",
           },
         },
       }) as const,
@@ -438,6 +469,10 @@ export default function Home() {
   const [result, setResult] = useState<PredictResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [valuateResult, setValuateResult] = useState<PredictResponse | null>(null);
+  const [valuateError, setValuateError] = useState<string | null>(null);
+  const [valuateLoading, setValuateLoading] = useState(false);
 
   const askingPrice = useMemo(
     () => toOptionalNumber(askingPriceInput),
@@ -634,6 +669,33 @@ export default function Home() {
     }
   }
 
+  async function onValuateSubmit(e: FormEvent) {
+    e.preventDefault();
+    setValuateLoading(true);
+    setValuateError(null);
+    setValuateResult(null);
+
+    try {
+      const resp = await fetch(`${apiBaseUrl}/predict`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(text || `HTTP ${resp.status}`);
+      }
+
+      const data = (await resp.json()) as PredictResponse;
+      setValuateResult(data);
+    } catch (err) {
+      setValuateError(err instanceof Error ? err.message : t.errors.unknown);
+    } finally {
+      setValuateLoading(false);
+    }
+  }
+
   return (
     <div
       className={
@@ -765,6 +827,7 @@ export default function Home() {
                 {([
                   { key: "predict", label: t.tabs.predict },
                   { key: "compare", label: t.tabs.compare },
+                  { key: "valuate", label: t.tabs.valuate },
                   { key: "about", label: t.tabs.about },
                 ] as const).map((tabDef) => {
                   const active = tab === tabDef.key;
@@ -1156,6 +1219,125 @@ export default function Home() {
               </div>
             )}
 
+            {tab === "valuate" && (
+              <>
+              <div
+                className={
+                  isDark
+                    ? "rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 text-sm text-amber-200/90"
+                    : "rounded-xl border border-amber-400/50 bg-amber-50 p-4 text-sm text-amber-900"
+                }
+              >
+                ⚠️ {t.valuate.disclaimer}
+              </div>
+
+              <form
+                onSubmit={onValuateSubmit}
+                className={
+                  isDark
+                    ? "rounded-xl border border-slate-800 bg-slate-950/60 p-5 backdrop-blur"
+                    : "rounded-xl border border-slate-300 bg-slate-50/80 p-5 backdrop-blur ring-1 ring-slate-200/70"
+                }
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="space-y-1">
+                    <div className="text-sm font-medium">{t.labels.area}</div>
+                    <select className={selectClassName} value={String(form.area)} onChange={(e) => updateForm({ area: toNumber(e.target.value) })} required>
+                      {areaOptions.map((v) => (<option key={v} value={v} className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}>{v}</option>))}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <div className="text-sm font-medium">{t.labels.rooms}</div>
+                    <select className={selectClassName} value={String(form.rooms)} onChange={(e) => updateForm({ rooms: toNumber(e.target.value) })} required>
+                      {roomOptions.map((v) => (<option key={v} value={v} className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}>{String(v).replace(".", ",")}</option>))}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <div className="text-sm font-medium">{t.labels.district}</div>
+                    <select className={selectClassName} value={form.district} onChange={(e) => updateForm({ district: e.target.value })} required>
+                      {districtOptions.map((v) => (<option key={v} value={v} className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}>{v}</option>))}
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <div className="text-sm font-medium">{t.labels.yearBuilt}</div>
+                    <select className={selectClassName} value={String(form.year_built)} onChange={(e) => updateForm({ year_built: toNumber(e.target.value) })} required>
+                      {yearBuiltOptions.map((v) => (<option key={v} value={v} className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}>{v}</option>))}
+                    </select>
+                  </label>
+                  <label className="space-y-1 sm:col-span-2">
+                    <div className="text-sm font-medium">{t.labels.monthlyFee}</div>
+                    <select className={selectClassName} value={String(form.monthly_fee)} onChange={(e) => updateForm({ monthly_fee: toNumber(e.target.value) })} required>
+                      {monthlyFeeOptions.map((v) => (<option key={v} value={v} className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}>{v}</option>))}
+                    </select>
+                  </label>
+                </div>
+                <div className="mt-5">
+                  <button
+                    type="submit"
+                    disabled={valuateLoading}
+                    className="rounded-md bg-gradient-to-r from-cyan-400 to-fuchsia-500 px-5 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                  >
+                    {valuateLoading ? t.actions.calculating : t.tabs.valuate}
+                  </button>
+                </div>
+              </form>
+
+              {valuateError && (
+                <div
+                  className={
+                    isDark
+                      ? "rounded-xl border border-red-900/40 bg-red-950/30 p-4 text-sm text-red-200"
+                      : "rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900"
+                  }
+                >
+                  {valuateError}
+                </div>
+              )}
+
+              {valuateResult && (
+                <div
+                  className={
+                    isDark
+                      ? "rounded-xl border border-slate-800 bg-slate-950/60 p-6 backdrop-blur text-center"
+                      : "rounded-xl border border-slate-300 bg-slate-50/80 p-6 backdrop-blur text-center ring-1 ring-slate-200/70"
+                  }
+                >
+                  <div className={isDark ? "text-sm text-slate-400" : "text-sm text-slate-500"}>
+                    {t.valuate.resultLabel}
+                  </div>
+                  <div
+                    className={
+                      isDark
+                        ? "mt-2 text-4xl font-bold tracking-tight bg-gradient-to-r from-cyan-300 to-fuchsia-400 bg-clip-text text-transparent"
+                        : "mt-2 text-4xl font-bold tracking-tight bg-gradient-to-r from-cyan-700 to-fuchsia-700 bg-clip-text text-transparent"
+                    }
+                  >
+                    {formatSek(valuateResult.predicted_total_price)}
+                  </div>
+                  <div className={isDark ? "mt-1 text-lg text-slate-300" : "mt-1 text-lg text-slate-600"}>
+                    {formatSek(valuateResult.predicted_price_per_sqm)} / {t.units.sqm}
+                  </div>
+                  <div className={isDark ? "mt-4 text-xs text-slate-500" : "mt-4 text-xs text-slate-400"}>
+                    model={valuateResult.model_version} · inference={valuateResult.inference_ms.toFixed(1)}ms
+                  </div>
+                </div>
+              )}
+
+              {valuateResult && (
+                <PriceTrendChart
+                  apiBaseUrl={apiBaseUrl}
+                  form={form}
+                  highlightYear={form.transaction_year ?? null}
+                  isDark={isDark}
+                  labelYear={t.chart.year}
+                  labelPrice={t.chart.price}
+                  labelLoading={t.chart.loading}
+                  formatSek={formatSek}
+                />
+              )}
+              </>
+            )}
+
             {tab === "about" && (
               <div
                 className={
@@ -1288,61 +1470,88 @@ export default function Home() {
                 </div>
               </div>
 
-              {askingPrice != null && (
-                <div
-                  className={
-                    isDark
-                      ? "mt-4 rounded-lg border border-slate-800 bg-slate-950/40 p-4"
-                      : "mt-4 rounded-lg border border-slate-300 bg-slate-50/70 p-4 ring-1 ring-slate-200/60"
-                  }
-                >
-                  <div className="text-sm font-semibold">{t.predictResult.overUnderTitle}</div>
-                  {(() => {
-                    const modelValue = result.predicted_total_price;
-                    const band = 0.07;
-                    const low = modelValue * (1 - band);
-                    const high = modelValue * (1 + band);
-                    const diff = askingPrice - modelValue;
-                    const diffPct = (diff / modelValue) * 100;
-                    const label =
-                      askingPrice < low
-                        ? t.predictResult.undervalued
-                        : askingPrice > high
-                          ? t.predictResult.overvalued
-                          : t.predictResult.fair;
-                    return (
-                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.predictResult.askingPrice}</div>
-                          <div className={isDark ? "text-sm text-slate-100" : "text-sm text-slate-900"}>
-                            {formatSek(askingPrice)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.predictResult.classification}</div>
-                          <div className={isDark ? "text-sm font-semibold text-slate-100" : "text-sm font-semibold text-slate-900"}>
-                            {label}
-                          </div>
-                        </div>
-                        <div>
-                          <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.predictResult.diff}</div>
-                          <div className={isDark ? "text-sm text-slate-100" : "text-sm text-slate-900"}>
-                            {formatSek(diff)} ({diffPct.toFixed(1)}%)
-                          </div>
-                        </div>
-                        <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>
-                          {t.predictResult.bandPrefix} ±{Math.round(band * 100)}% {t.predictResult.bandSuffix}
-                        </div>
+              {askingPrice != null && (() => {
+                const modelValue = result.predicted_total_price;
+                const band = 0.07;
+                const low = modelValue * (1 - band);
+                const high = modelValue * (1 + band);
+                const diff = askingPrice - modelValue;
+                const diffPct = (diff / modelValue) * 100;
+                const isUnder = askingPrice < low;
+                const isOver = askingPrice > high;
+                const label = isUnder
+                  ? t.predictResult.undervalued
+                  : isOver
+                    ? t.predictResult.overvalued
+                    : t.predictResult.fair;
+                const badgeColor = isUnder
+                  ? "from-emerald-500 to-cyan-500"
+                  : isOver
+                    ? "from-rose-500 to-fuchsia-500"
+                    : "from-amber-400 to-yellow-500";
+                const badgeTextColor = isUnder
+                  ? "text-emerald-950"
+                  : isOver
+                    ? "text-rose-950"
+                    : "text-amber-950";
+                const barColor = isUnder
+                  ? isDark ? "bg-emerald-400" : "bg-emerald-500"
+                  : isOver
+                    ? isDark ? "bg-rose-400" : "bg-rose-500"
+                    : isDark ? "bg-amber-400" : "bg-amber-500";
+                const barPct = Math.min(Math.abs(diffPct), 100);
+                return (
+                  <div
+                    className={
+                      isDark
+                        ? "mt-5 rounded-lg border border-slate-700 bg-slate-900/70 p-4 shadow-md shadow-black/30"
+                        : "mt-5 rounded-lg border border-slate-300 bg-white/60 p-4 shadow-md shadow-slate-300/40 ring-1 ring-slate-200/50"
+                    }
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`inline-flex items-center rounded-full bg-gradient-to-r ${badgeColor} px-3 py-1 text-xs font-bold ${badgeTextColor} shadow-sm`}
+                      >
+                        {isUnder ? "↓" : isOver ? "↑" : "≈"} {label}
+                      </span>
+                      <span className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>
+                        {formatSek(diff)} ({diffPct > 0 ? "+" : ""}{diffPct.toFixed(1)}%)
+                      </span>
+                    </div>
+
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className={isDark ? "text-slate-400" : "text-slate-500"}>{t.predictResult.askingPrice}: {formatSek(askingPrice)}</span>
+                        <span className={isDark ? "text-slate-400" : "text-slate-500"}>{t.predictResult.bandPrefix} ±{Math.round(band * 100)}% {t.predictResult.bandSuffix}</span>
                       </div>
-                    );
-                  })()}
-                </div>
-              )}
+                      <div className={`mt-1.5 h-2 w-full rounded-full ${isDark ? "bg-slate-800" : "bg-slate-200"}`}>
+                        <div
+                          className={`h-2 rounded-full ${barColor} transition-all duration-700 ease-out`}
+                          style={{ width: `${barPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className={isDark ? "mt-4 text-sm text-slate-300" : "mt-4 text-sm text-slate-600"}>
                 model={result.model_version} · inference={result.inference_ms.toFixed(1)}ms
               </div>
             </div>
+          )}
+
+          {tab === "predict" && result && (
+            <PriceTrendChart
+              apiBaseUrl={apiBaseUrl}
+              form={form}
+              highlightYear={form.transaction_year ?? null}
+              isDark={isDark}
+              labelYear={t.chart.year}
+              labelPrice={t.chart.price}
+              labelLoading={t.chart.loading}
+              formatSek={formatSek}
+            />
           )}
 
           {tab === "predict" && scenarios.length > 0 && (

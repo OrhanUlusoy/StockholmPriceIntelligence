@@ -9,7 +9,7 @@ from sklearn.preprocessing import OneHotEncoder
 
 
 def build_preprocessor(
-    *, numeric_features: list[str], categorical_features: list[str],
+    *, numeric_features: list[str], categorical_features: list[str]
 ) -> ColumnTransformer:
     num_pipe = Pipeline(steps=[("imputer", SimpleImputer(strategy="median"))])
     cat_pipe = Pipeline(
