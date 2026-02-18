@@ -4,9 +4,9 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    MODEL_PATH=models/model_v1.pkl \
-    PREPROCESSOR_PATH=models/preprocessor_v1.pkl \
-    MODEL_VERSION=v1 \
+    MODEL_PATH=models/model_full_v1.pkl \
+    PREPROCESSOR_PATH=models/preprocessor_full_v1.pkl \
+    MODEL_VERSION=full_v1 \
     PREDICTION_LOG_PATH=logs/predictions.jsonl
 
 COPY pyproject.toml /app/pyproject.toml
