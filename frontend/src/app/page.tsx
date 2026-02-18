@@ -1460,8 +1460,8 @@ export default function Home() {
           <span
             className={
               isDark
-                ? "text-base bg-gradient-to-r from-cyan-400/40 to-fuchsia-400/40 bg-clip-text text-transparent select-none transition-all duration-300 hover:from-cyan-300 hover:to-fuchsia-400 hover:drop-shadow-[0_0_8px_rgba(139,92,246,0.5)]"
-                : "text-base bg-gradient-to-r from-cyan-600/40 to-fuchsia-600/40 bg-clip-text text-transparent select-none transition-all duration-300 hover:from-cyan-600 hover:to-fuchsia-600 hover:drop-shadow-[0_0_8px_rgba(139,92,246,0.3)]"
+                ? "text-base bg-gradient-to-r from-cyan-300 to-fuchsia-400 bg-clip-text text-transparent select-none drop-shadow-[0_0_8px_rgba(139,92,246,0.5)] transition-all duration-300 hover:drop-shadow-[0_0_14px_rgba(139,92,246,0.7)]"
+                : "text-base bg-gradient-to-r from-cyan-600 to-fuchsia-600 bg-clip-text text-transparent select-none drop-shadow-[0_0_8px_rgba(139,92,246,0.3)] transition-all duration-300 hover:drop-shadow-[0_0_14px_rgba(139,92,246,0.5)]"
             }
           >
             Built by @OrhanUlusoy
