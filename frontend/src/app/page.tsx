@@ -193,19 +193,18 @@ export default function Home() {
           },
 
           about: {
-            intro: "Info om API och modellen du kör just nu.",
-            api: "API",
-            latestPrediction: "Senaste prediction",
-            latestPredictionEmpty: "Kör Prediktera för att se modellversion.",
-            modelInfoTitle: "/model-info",
-            loading: "Hämtar…",
-            couldNotFetchPrefix: "Kunde inte hämta:",
-            modelVersion: "Model version",
-            targetMode: "Target mode",
-            meanMae: "Mean MAE",
-            meanR2: "Mean R²",
-            tip:
-              "Tips: SCB-läget kan ha färre features än UI. Full-feature (port 8001) är bäst för demo där alla inputs påverkar.",
+            heading: "Om projektet",
+            description: "Stockholm Price Intelligence är ett end-to-end maskininlärningsprojekt som uppskattar bostadspriser i Stockholmsområdet. Modellen tar hänsyn till boarea, antal rum, stadsdel, byggår, avgift och transaktionsår.",
+            techTitle: "Teknikstack",
+            techItems: [
+              "Modell: Random Forest (scikit-learn)",
+              "API: FastAPI (Python)",
+              "Frontend: Next.js + React + Tailwind",
+              "Deploy: Vercel (frontend) + Render (backend)",
+              "CI/CD: GitHub Actions",
+            ],
+            disclaimer: "Observera: detta är ett demoprojekt — inte en officiell bostadsvärdering.",
+            modelLabel: "Modellversion",
           },
 
           errors: {
@@ -300,19 +299,18 @@ export default function Home() {
           },
 
           about: {
-            intro: "Info about the API and the model you are running.",
-            api: "API",
-            latestPrediction: "Latest prediction",
-            latestPredictionEmpty: "Run Predict to see the model version.",
-            modelInfoTitle: "/model-info",
-            loading: "Loading…",
-            couldNotFetchPrefix: "Could not fetch:",
-            modelVersion: "Model version",
-            targetMode: "Target mode",
-            meanMae: "Mean MAE",
-            meanR2: "Mean R²",
-            tip:
-              "Tip: The SCB mode may have fewer features than the UI. Full-feature (port 8001) is best for demos where all inputs affect the result.",
+            heading: "About the project",
+            description: "Stockholm Price Intelligence is an end-to-end machine learning project that estimates apartment prices in the Stockholm area. The model considers living area, number of rooms, district, year built, monthly fee, and transaction year.",
+            techTitle: "Tech stack",
+            techItems: [
+              "Model: Random Forest (scikit-learn)",
+              "API: FastAPI (Python)",
+              "Frontend: Next.js + React + Tailwind",
+              "Deploy: Vercel (frontend) + Render (backend)",
+              "CI/CD: GitHub Actions",
+            ],
+            disclaimer: "Note: this is a demo project — not an official property valuation.",
+            modelLabel: "Model version",
           },
 
           errors: {
@@ -1185,95 +1183,50 @@ export default function Home() {
               <div
                 className={
                   isDark
-                    ? "rounded-xl border border-slate-800 bg-slate-950/60 p-5 backdrop-blur"
-                    : "rounded-xl border border-slate-300 bg-slate-50/80 p-5 backdrop-blur ring-1 ring-slate-200/70"
+                    ? "rounded-xl border border-slate-800 bg-slate-950/60 p-6 backdrop-blur space-y-5"
+                    : "rounded-xl border border-slate-300 bg-slate-50/80 p-6 backdrop-blur ring-1 ring-slate-200/70 space-y-5"
                 }
               >
-                <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>
-                  {t.about.intro}
+                <h2
+                  className={
+                    isDark
+                      ? "text-lg font-semibold bg-gradient-to-r from-cyan-300 to-fuchsia-400 bg-clip-text text-transparent"
+                      : "text-lg font-semibold bg-gradient-to-r from-cyan-700 to-fuchsia-700 bg-clip-text text-transparent"
+                  }
+                >
+                  {t.about.heading}
+                </h2>
+
+                <p className={isDark ? "text-sm leading-relaxed text-slate-300" : "text-sm leading-relaxed text-slate-600"}>
+                  {t.about.description}
+                </p>
+
+                <div>
+                  <div className="text-sm font-semibold mb-2">{t.about.techTitle}</div>
+                  <ul className={isDark ? "space-y-1 text-sm text-slate-300" : "space-y-1 text-sm text-slate-600"}>
+                    {t.about.techItems.map((item: string, i: number) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className={isDark ? "text-cyan-400 mt-0.5" : "text-cyan-600 mt-0.5"}>&#x25B8;</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div
-                    className={
-                      isDark
-                        ? "rounded-lg border border-slate-800 bg-slate-950/40 p-4"
-                        : "rounded-lg border border-slate-300 bg-slate-50/70 p-4 ring-1 ring-slate-200/60"
-                    }
-                  >
-                    <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.about.api}</div>
-                    <div className={isDark ? "mt-1 font-mono text-sm text-slate-100" : "mt-1 font-mono text-sm text-slate-900"}>
-                      {apiBaseUrl}
-                    </div>
+                {modelInfo && (
+                  <div className={isDark ? "text-sm text-slate-400" : "text-sm text-slate-500"}>
+                    {t.about.modelLabel}: <span className="font-mono">{modelInfo.model_version}</span>
                   </div>
-
-                  <div
-                    className={
-                      isDark
-                        ? "rounded-lg border border-slate-800 bg-slate-950/40 p-4"
-                        : "rounded-lg border border-slate-300 bg-slate-50/70 p-4 ring-1 ring-slate-200/60"
-                    }
-                  >
-                    <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.about.latestPrediction}</div>
-                    <div className={isDark ? "mt-1 text-sm text-slate-100" : "mt-1 text-sm text-slate-900"}>
-                      {result
-                        ? `model=${result.model_version} · ${result.inference_ms.toFixed(1)}ms`
-                        : t.about.latestPredictionEmpty}
-                    </div>
-                  </div>
-                </div>
+                )}
 
                 <div
                   className={
                     isDark
-                      ? "mt-4 rounded-lg border border-slate-800 bg-slate-950/40 p-4"
-                      : "mt-4 rounded-lg border border-slate-300 bg-slate-50/70 p-4 ring-1 ring-slate-200/60"
+                      ? "rounded-lg border border-amber-500/20 bg-amber-950/10 px-4 py-3 text-xs text-amber-200/80"
+                      : "rounded-lg border border-amber-400/40 bg-amber-50/80 px-4 py-3 text-xs text-amber-800"
                   }
                 >
-                  <div className="text-sm font-semibold">{t.about.modelInfoTitle}</div>
-                  {modelInfoLoading && (
-                    <div className={isDark ? "mt-2 text-sm text-slate-300" : "mt-2 text-sm text-slate-600"}>{t.about.loading}</div>
-                  )}
-                  {modelInfoError && (
-                    <div className={isDark ? "mt-2 text-sm text-red-200" : "mt-2 text-sm text-red-700"}>
-                      {t.about.couldNotFetchPrefix} {modelInfoError}
-                    </div>
-                  )}
-                  {modelInfo && !modelInfoLoading && (
-                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.about.modelVersion}</div>
-                        <div className={isDark ? "text-sm text-slate-100" : "text-sm text-slate-900"}>
-                          {modelInfo.model_version}
-                        </div>
-                      </div>
-                      <div>
-                        <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.about.targetMode}</div>
-                        <div className={isDark ? "text-sm text-slate-100" : "text-sm text-slate-900"}>
-                          {modelInfo.target_mode}
-                        </div>
-                      </div>
-                      <div>
-                        <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.about.meanMae}</div>
-                        <div className={isDark ? "text-sm text-slate-100" : "text-sm text-slate-900"}>
-                          {modelInfo.metrics?.mean_mae == null
-                            ? "-"
-                            : formatSek(modelInfo.metrics.mean_mae)}
-                        </div>
-                      </div>
-                      <div>
-                        <div className={isDark ? "text-sm text-slate-300" : "text-sm text-slate-600"}>{t.about.meanR2}</div>
-                        <div className={isDark ? "text-sm text-slate-100" : "text-sm text-slate-900"}>
-                          {modelInfo.metrics?.mean_r2 == null
-                            ? "-"
-                            : safeFixed(modelInfo.metrics.mean_r2, 3)}
-                        </div>
-                      </div>
-                      <div className={isDark ? "sm:col-span-2 text-sm text-slate-300" : "sm:col-span-2 text-sm text-slate-600"}>
-                        {t.about.tip}
-                      </div>
-                    </div>
-                  )}
+                  {t.about.disclaimer}
                 </div>
               </div>
             )}
