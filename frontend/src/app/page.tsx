@@ -43,7 +43,7 @@ type Scenario = {
   asking_price: number | null;
 };
 
-type TabKey = "predict" | "compare" | "valuate" | "about";
+type TabKey = "predict" | "compare" | "about";
 
 type Theme = "dark" | "light";
 
@@ -145,7 +145,7 @@ export default function Home() {
         sv: {
           tagline: "Uppskatta pris per kvm och totalpris för bostadsrätt.",
 
-          tabs: { predict: "Prediktera", compare: "Jämför", valuate: "Värdera din bostad", about: "Om" },
+          tabs: { predict: "Prediktera", compare: "Jämför", about: "Om" },
 
           languageLabel: "Språk",
           languageAria: "Välj språk",
@@ -247,17 +247,12 @@ export default function Home() {
             loading: "Laddar prishistorik…",
           },
 
-          valuate: {
-            disclaimer:
-              "Observera: detta är en uppskattning baserad på en maskininlärningsmodell och är inte en officiell värdering. Verkligt marknadsvärde kan skilja sig.",
-            resultTitle: "Uppskattat värde",
-            resultLabel: "Din bostad är värd uppskattningsvis",
-          },
+
         },
         en: {
           tagline: "Estimate price per sqm and total price for condos.",
 
-          tabs: { predict: "Predict", compare: "Compare", valuate: "Value your home", about: "About" },
+          tabs: { predict: "Predict", compare: "Compare", about: "About" },
 
           languageLabel: "Language",
           languageAria: "Select language",
@@ -359,12 +354,7 @@ export default function Home() {
             loading: "Loading price history…",
           },
 
-          valuate: {
-            disclaimer:
-              "Note: this is an estimate based on a machine learning model and is not an official appraisal. Actual market value may differ.",
-            resultTitle: "Estimated value",
-            resultLabel: "Your home is estimated to be worth",
-          },
+
         },
       }) as const,
     [],
@@ -470,9 +460,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const [valuateResult, setValuateResult] = useState<PredictResponse | null>(null);
-  const [valuateError, setValuateError] = useState<string | null>(null);
-  const [valuateLoading, setValuateLoading] = useState(false);
+
 
   const askingPrice = useMemo(
     () => toOptionalNumber(askingPriceInput),
@@ -669,32 +657,7 @@ export default function Home() {
     }
   }
 
-  async function onValuateSubmit(e: FormEvent) {
-    e.preventDefault();
-    setValuateLoading(true);
-    setValuateError(null);
-    setValuateResult(null);
 
-    try {
-      const resp = await fetch(`${apiBaseUrl}/predict`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      if (!resp.ok) {
-        const text = await resp.text();
-        throw new Error(text || `HTTP ${resp.status}`);
-      }
-
-      const data = (await resp.json()) as PredictResponse;
-      setValuateResult(data);
-    } catch (err) {
-      setValuateError(err instanceof Error ? err.message : t.errors.unknown);
-    } finally {
-      setValuateLoading(false);
-    }
-  }
 
   return (
     <div
@@ -827,7 +790,6 @@ export default function Home() {
                 {([
                   { key: "predict", label: t.tabs.predict },
                   { key: "compare", label: t.tabs.compare },
-                  { key: "valuate", label: t.tabs.valuate },
                   { key: "about", label: t.tabs.about },
                 ] as const).map((tabDef) => {
                   const active = tab === tabDef.key;
@@ -1217,125 +1179,6 @@ export default function Home() {
                   </div>
                 )}
               </div>
-            )}
-
-            {tab === "valuate" && (
-              <>
-              <div
-                className={
-                  isDark
-                    ? "rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 text-sm text-amber-200/90"
-                    : "rounded-xl border border-amber-400/50 bg-amber-50 p-4 text-sm text-amber-900"
-                }
-              >
-                ⚠️ {t.valuate.disclaimer}
-              </div>
-
-              <form
-                onSubmit={onValuateSubmit}
-                className={
-                  isDark
-                    ? "rounded-xl border border-slate-800 bg-slate-950/60 p-5 backdrop-blur"
-                    : "rounded-xl border border-slate-300 bg-slate-50/80 p-5 backdrop-blur ring-1 ring-slate-200/70"
-                }
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <label className="space-y-1">
-                    <div className="text-sm font-medium">{t.labels.area}</div>
-                    <select className={selectClassName} value={String(form.area)} onChange={(e) => updateForm({ area: toNumber(e.target.value) })} required>
-                      {areaOptions.map((v) => (<option key={v} value={v} className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}>{v}</option>))}
-                    </select>
-                  </label>
-                  <label className="space-y-1">
-                    <div className="text-sm font-medium">{t.labels.rooms}</div>
-                    <select className={selectClassName} value={String(form.rooms)} onChange={(e) => updateForm({ rooms: toNumber(e.target.value) })} required>
-                      {roomOptions.map((v) => (<option key={v} value={v} className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}>{String(v).replace(".", ",")}</option>))}
-                    </select>
-                  </label>
-                  <label className="space-y-1">
-                    <div className="text-sm font-medium">{t.labels.district}</div>
-                    <select className={selectClassName} value={form.district} onChange={(e) => updateForm({ district: e.target.value })} required>
-                      {districtOptions.map((v) => (<option key={v} value={v} className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}>{v}</option>))}
-                    </select>
-                  </label>
-                  <label className="space-y-1">
-                    <div className="text-sm font-medium">{t.labels.yearBuilt}</div>
-                    <select className={selectClassName} value={String(form.year_built)} onChange={(e) => updateForm({ year_built: toNumber(e.target.value) })} required>
-                      {yearBuiltOptions.map((v) => (<option key={v} value={v} className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}>{v}</option>))}
-                    </select>
-                  </label>
-                  <label className="space-y-1 sm:col-span-2">
-                    <div className="text-sm font-medium">{t.labels.monthlyFee}</div>
-                    <select className={selectClassName} value={String(form.monthly_fee)} onChange={(e) => updateForm({ monthly_fee: toNumber(e.target.value) })} required>
-                      {monthlyFeeOptions.map((v) => (<option key={v} value={v} className={isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"}>{v}</option>))}
-                    </select>
-                  </label>
-                </div>
-                <div className="mt-5">
-                  <button
-                    type="submit"
-                    disabled={valuateLoading}
-                    className="rounded-md bg-gradient-to-r from-cyan-400 to-fuchsia-500 px-5 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
-                  >
-                    {valuateLoading ? t.actions.calculating : t.tabs.valuate}
-                  </button>
-                </div>
-              </form>
-
-              {valuateError && (
-                <div
-                  className={
-                    isDark
-                      ? "rounded-xl border border-red-900/40 bg-red-950/30 p-4 text-sm text-red-200"
-                      : "rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900"
-                  }
-                >
-                  {valuateError}
-                </div>
-              )}
-
-              {valuateResult && (
-                <div
-                  className={
-                    isDark
-                      ? "rounded-xl border border-slate-800 bg-slate-950/60 p-6 backdrop-blur text-center"
-                      : "rounded-xl border border-slate-300 bg-slate-50/80 p-6 backdrop-blur text-center ring-1 ring-slate-200/70"
-                  }
-                >
-                  <div className={isDark ? "text-sm text-slate-400" : "text-sm text-slate-500"}>
-                    {t.valuate.resultLabel}
-                  </div>
-                  <div
-                    className={
-                      isDark
-                        ? "mt-2 text-4xl font-bold tracking-tight bg-gradient-to-r from-cyan-300 to-fuchsia-400 bg-clip-text text-transparent"
-                        : "mt-2 text-4xl font-bold tracking-tight bg-gradient-to-r from-cyan-700 to-fuchsia-700 bg-clip-text text-transparent"
-                    }
-                  >
-                    {formatSek(valuateResult.predicted_total_price)}
-                  </div>
-                  <div className={isDark ? "mt-1 text-lg text-slate-300" : "mt-1 text-lg text-slate-600"}>
-                    {formatSek(valuateResult.predicted_price_per_sqm)} / {t.units.sqm}
-                  </div>
-                  <div className={isDark ? "mt-4 text-xs text-slate-500" : "mt-4 text-xs text-slate-400"}>
-                    model={valuateResult.model_version} · inference={valuateResult.inference_ms.toFixed(1)}ms
-                  </div>
-                </div>
-              )}
-
-              {valuateResult && (
-                <PriceTrendChart
-                  apiBaseUrl={apiBaseUrl}
-                  form={form}
-                  highlightYear={form.transaction_year ?? null}
-                  isDark={isDark}
-                  labelYear={t.chart.year}
-                  labelPrice={t.chart.price}
-                  labelLoading={t.chart.loading}
-                  formatSek={formatSek}
-                />
-              )}
-              </>
             )}
 
             {tab === "about" && (
