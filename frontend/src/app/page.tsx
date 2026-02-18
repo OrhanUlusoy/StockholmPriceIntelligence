@@ -205,6 +205,17 @@ export default function Home() {
             ],
             disclaimer: "Observera: detta är ett demoprojekt — inte en officiell bostadsvärdering.",
             modelLabel: "Modellversion",
+            deepDiveTitle: "Så funkar det",
+            deepDiveItems: [
+              { label: "Träningsdata", desc: "Bostadsdata från SCB kombinerat med syntetisk data som simulerar hur priser varierar med area, rum, stadsdel m.m." },
+              { label: "Random Forest", desc: "ML-algoritm som bygger hundratals beslutsträd och kombinerar resultaten — ger bättre precision än en enkel linjär modell." },
+              { label: "FastAPI", desc: "Python-ramverk som exponerar modellen som ett REST API — frontenden skickar data och får tillbaka ett estimerat pris." },
+              { label: "Next.js / React", desc: "Frontendramverk som renderar UI:t — formulär, graf, temaväxling och språkstöd." },
+              { label: "Render", desc: "Molnhosting som kör backenden i en Docker-container." },
+              { label: "Vercel", desc: "Molnhosting optimerad för Next.js-appar, hanterar frontend-deploy automatiskt." },
+              { label: "CI/CD", desc: "GitHub Actions kör lint och tester automatiskt vid varje push — fångar fel innan deploy." },
+              { label: "Grafen", desc: "Skickar 25 API-anrop (ett per år 2000–2024) och plottar hur modellen estimerar prisutvecklingen." },
+            ],
           },
 
           errors: {
@@ -311,6 +322,17 @@ export default function Home() {
             ],
             disclaimer: "Note: this is a demo project — not an official property valuation.",
             modelLabel: "Model version",
+            deepDiveTitle: "How it works",
+            deepDiveItems: [
+              { label: "Training data", desc: "Housing data from SCB (Statistics Sweden) combined with synthetic data simulating how prices vary with area, rooms, district, etc." },
+              { label: "Random Forest", desc: "ML algorithm that builds hundreds of decision trees and combines results — yields better accuracy than a simple linear model." },
+              { label: "FastAPI", desc: "Python framework that exposes the model as a REST API — the frontend sends data and receives an estimated price." },
+              { label: "Next.js / React", desc: "Frontend framework that renders the UI — form, chart, theme toggle, and language support." },
+              { label: "Render", desc: "Cloud hosting that runs the backend in a Docker container." },
+              { label: "Vercel", desc: "Cloud hosting optimized for Next.js apps, handles frontend deployment automatically." },
+              { label: "CI/CD", desc: "GitHub Actions runs lint and tests automatically on every push — catches errors before deployment." },
+              { label: "The chart", desc: "Sends 25 API calls (one per year 2000–2024) and plots how the model estimates the price trend." },
+            ],
           },
 
           errors: {
@@ -1211,6 +1233,25 @@ export default function Home() {
                       </li>
                     ))}
                   </ul>
+                </div>
+
+                <div>
+                  <div className="text-sm font-semibold mb-3">{t.about.deepDiveTitle}</div>
+                  <div className="grid gap-2">
+                    {t.about.deepDiveItems.map((item: { label: string; desc: string }, i: number) => (
+                      <div
+                        key={i}
+                        className={
+                          isDark
+                            ? "rounded-lg border border-slate-800 bg-slate-900/50 px-4 py-3"
+                            : "rounded-lg border border-slate-200 bg-white/60 px-4 py-3"
+                        }
+                      >
+                        <span className={isDark ? "text-sm font-semibold text-cyan-300" : "text-sm font-semibold text-cyan-700"}>{item.label}</span>
+                        <span className={isDark ? "ml-2 text-sm text-slate-300" : "ml-2 text-sm text-slate-600"}>{item.desc}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 {modelInfo && (

@@ -1,0 +1,83 @@
+{
+  "run": {
+    "model_name": "rf",
+    "model_type": "random_forest",
+    "started_at_utc": "2026-02-12T15:45:06.842372+00:00",
+    "duration_s": 8.663554199971259,
+    "cv_folds": 5,
+    "fold_metrics": [
+      {
+        "fold": 1,
+        "mae": 3373.6057667776454,
+        "rmse": 4193.739256343887,
+        "r2": 0.8476290238088102
+      },
+      {
+        "fold": 2,
+        "mae": 3589.4258576476386,
+        "rmse": 4416.412694217888,
+        "r2": 0.8545155477732294
+      },
+      {
+        "fold": 3,
+        "mae": 3374.7088889764495,
+        "rmse": 4189.565816871531,
+        "r2": 0.8609567573386945
+      },
+      {
+        "fold": 4,
+        "mae": 3341.28238931947,
+        "rmse": 4208.482227364589,
+        "r2": 0.8772293770086972
+      },
+      {
+        "fold": 5,
+        "mae": 3312.6470670290437,
+        "rmse": 4179.07522788992,
+        "r2": 0.8719939196026049
+      }
+    ],
+    "mean_mae": 3398.3339939500497,
+    "mean_rmse": 4237.455044537563,
+    "mean_r2": 0.862464925106407
+  },
+  "params": {
+    "model": "random_forest",
+    "model_params": {
+      "n_estimators": 400,
+      "max_depth": 12,
+      "min_samples_split": 6
+    },
+    "data": {
+      "train_csv": "data/processed/train.csv",
+      "target_col": "price_per_sqm",
+      "numeric_features": [
+        "area",
+        "rooms",
+        "year_built",
+        "monthly_fee",
+        "transaction_year"
+      ],
+      "categorical_features": [
+        "district"
+      ],
+      "outliers": {
+        "enabled": true,
+        "method": "iqr_clip",
+        "k": 1.5
+      }
+    },
+    "train": {
+      "random_state": 42,
+      "cv_folds": 5
+    }
+  },
+  "artifacts": {
+    "model_path": "backend/models/model_v2.pkl",
+    "preprocessor_path": "backend/models/preprocessor_v2.pkl",
+    "version_tag": "v2"
+  },
+  "env": {
+    "model_version_env": null
+  }
+}

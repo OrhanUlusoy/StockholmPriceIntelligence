@@ -1,0 +1,83 @@
+{
+  "run": {
+    "model_name": "hgb",
+    "model_type": "hist_gradient_boosting",
+    "started_at_utc": "2026-02-12T15:45:17.817858+00:00",
+    "duration_s": 5.005483799963258,
+    "cv_folds": 5,
+    "fold_metrics": [
+      {
+        "fold": 1,
+        "mae": 3657.4397350701356,
+        "rmse": 4589.759004609685,
+        "r2": 0.8174931517709265
+      },
+      {
+        "fold": 2,
+        "mae": 3799.301430409775,
+        "rmse": 4640.403585453535,
+        "r2": 0.8393840053434447
+      },
+      {
+        "fold": 3,
+        "mae": 3565.915770383239,
+        "rmse": 4427.326214164056,
+        "r2": 0.8447273738781175
+      },
+      {
+        "fold": 4,
+        "mae": 3574.751349297124,
+        "rmse": 4495.174229133252,
+        "r2": 0.8599327754059123
+      },
+      {
+        "fold": 5,
+        "mae": 3484.2994502728384,
+        "rmse": 4408.786409795719,
+        "r2": 0.8575349482719584
+      }
+    ],
+    "mean_mae": 3616.3415470866225,
+    "mean_rmse": 4512.28988863125,
+    "mean_r2": 0.8438144509340718
+  },
+  "params": {
+    "model": "hist_gradient_boosting",
+    "model_params": {
+      "max_depth": 8,
+      "learning_rate": 0.08,
+      "max_iter": 500
+    },
+    "data": {
+      "train_csv": "data/processed/train.csv",
+      "target_col": "price_per_sqm",
+      "numeric_features": [
+        "area",
+        "rooms",
+        "year_built",
+        "monthly_fee",
+        "transaction_year"
+      ],
+      "categorical_features": [
+        "district"
+      ],
+      "outliers": {
+        "enabled": true,
+        "method": "iqr_clip",
+        "k": 1.5
+      }
+    },
+    "train": {
+      "random_state": 42,
+      "cv_folds": 5
+    }
+  },
+  "artifacts": {
+    "model_path": "backend/models/model_v3.pkl",
+    "preprocessor_path": "backend/models/preprocessor_v3.pkl",
+    "version_tag": "v3"
+  },
+  "env": {
+    "model_version_env": null
+  }
+}
