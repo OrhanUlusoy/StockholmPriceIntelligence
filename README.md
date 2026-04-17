@@ -1,5 +1,10 @@
 # Stockholm Price Intelligence
 
+> **Status**: active | **Version**: unversioned | **README refreshed**: 2026-04-17
+>
+> Since README was last updated (2026-02-16):  tracked commits (3 feat, 0
+0 fix, 23 chore). Fork with upstream-mirror sync.
+
 End-to-end ML + web app that predicts Stockholm apartment (bostadsrätt) value from structured features.
 
 - **Outputs**: predicted SEK/kvm and derived total price
