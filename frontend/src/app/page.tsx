@@ -207,7 +207,7 @@ export default function Home() {
             modelLabel: "Modellversion",
             deepDiveTitle: "Så funkar det",
             deepDiveItems: [
-              { label: "Träningsdata", desc: "Bostadsdata från SCB kombinerat med syntetisk data som simulerar hur priser varierar med area, rum, stadsdel m.m." },
+              { label: "Träningsdata", desc: "Demomodellen är tränad på syntetisk data (20 000 genererade rader) som simulerar hur priset varierar med area, rum, stadsdel, byggår, avgift och år. Ingen verklig försäljningsdata ingår." },
               { label: "Random Forest", desc: "ML-algoritm som bygger hundratals beslutsträd och kombinerar resultaten — ger bättre precision än en enkel linjär modell." },
               { label: "FastAPI", desc: "Python-ramverk som exponerar modellen som ett REST API — frontenden skickar data och får tillbaka ett estimerat pris." },
               { label: "Next.js / React", desc: "Frontendramverk som renderar UI:t — formulär, graf, temaväxling och språkstöd." },
@@ -324,7 +324,7 @@ export default function Home() {
             modelLabel: "Model version",
             deepDiveTitle: "How it works",
             deepDiveItems: [
-              { label: "Training data", desc: "Housing data from SCB (Statistics Sweden) combined with synthetic data simulating how prices vary with area, rooms, district, etc." },
+              { label: "Training data", desc: "The demo model is trained on synthetic data (20,000 generated rows) that simulates how price varies with area, rooms, district, year built, fee and year. No real sales data is included." },
               { label: "Random Forest", desc: "ML algorithm that builds hundreds of decision trees and combines results — yields better accuracy than a simple linear model." },
               { label: "FastAPI", desc: "Python framework that exposes the model as a REST API — the frontend sends data and receives an estimated price." },
               { label: "Next.js / React", desc: "Frontend framework that renders the UI — form, chart, theme toggle, and language support." },
