@@ -191,12 +191,14 @@ This project is easiest to deploy as:
 1. Push the repo to GitHub.
 2. In Render: **New** → **Web Service** → connect the repo.
 3. Select **Docker** and set **Root Directory** to `backend`.
-4. Add environment variables (example: SCB model):
-	- `MODEL_PATH=models/model_scb_v2.pkl`
-	- `PREPROCESSOR_PATH=models/preprocessor_scb_v2.pkl`
-	- `MODEL_VERSION=scb_v2`
+4. Add environment variables (full-feature demo model, same as `render.yaml`):
+	- `MODEL_PATH=models/model_full_v1.pkl`
+	- `PREPROCESSOR_PATH=models/preprocessor_full_v1.pkl`
+	- `MODEL_VERSION=full_v1`
 	- `TARGET_MODE=total_price`
-	- `METRICS_PATH=reports/metrics/latest.json`
+	- `METRICS_PATH=reports/metrics_full/latest.json`
+
+	`TARGET_MODE=total_price` is required: the model predicts total price, and without it the API treats the output as SEK/kvm.
 	- Optional (recommended after frontend is deployed):
 	  - `CORS_ALLOW_ORIGIN=https://<your-vercel-domain>`
 

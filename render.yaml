@@ -16,5 +16,9 @@ services:
         value: models/preprocessor_full_v1.pkl
       - key: MODEL_VERSION
         value: full_v1
+      - key: TARGET_MODE
+        value: total_price
+      - key: METRICS_PATH
+        value: reports/metrics_full/latest.json
       - key: PREDICTION_LOG_PATH
         value: logs/predictions.jsonl

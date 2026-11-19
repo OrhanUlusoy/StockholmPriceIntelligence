@@ -7,6 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     MODEL_PATH=models/model_full_v1.pkl \
     PREPROCESSOR_PATH=models/preprocessor_full_v1.pkl \
     MODEL_VERSION=full_v1 \
+    TARGET_MODE=total_price \
+    METRICS_PATH=reports/metrics_full/latest.json \
     PREDICTION_LOG_PATH=logs/predictions.jsonl
 
 COPY pyproject.toml /app/pyproject.toml
